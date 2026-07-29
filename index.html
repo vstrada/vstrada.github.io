@@ -784,8 +784,25 @@ function refreshApproverSelect(){
 function getProjectCategories(){ return getStore('wt_project_categories') }
 function getWorkhourTypes(){ return getStore('wt_workhour_types') }
 function getWorkhourTypeNames(){ return getStore('wt_workhour_type_names') }
-function getAdminPassword(){ var raw = localStorage.getItem('wt_admin_pwd'); if(!raw) return 'admin123'; try { var p = JSON.parse(raw); return typeof p === 'string' ? p : raw; } catch(e){ return raw; } }
-function setAdminPassword(pwd){ localStorage.setItem('wt_admin_pwd', pwd); supaSet('wt_admin_pwd', pwd); }
+function getAdminPassword(){ return localStorage.getItem('wt_admin_pwd') || 'admin123'; }
+async function setAdminPassword(pwd){
+  localStorage.setItem('wt_admin_pwd', pwd);
+  try {
+    // 不通过 supaSet（它会对字符串做 JSON.stringify 导致格式不一致）
+    // 直接用 merge 写入 Supabase，保证其他键的 syncFromServer 也能正确同步
+    var r = await fetch(SUPA_URL+'/rest/v1/worktime_data',{
+      method:'POST',
+      headers:Object.assign({},SUPA_HEADERS,{'Prefer':'resolution=merge-duplicates,return=representation'}),
+      body:JSON.stringify({id:'wt_admin_pwd', data:pwd, updated_at:new Date().toISOString()})
+    });
+    if(r.ok){
+      var rows = await r.json();
+      if(rows && rows[0] && rows[0].updated_at){
+        localStorage.setItem('wt_sync_at_wt_admin_pwd', rows[0].updated_at);
+      }
+    }
+  } catch(e){ console.error('setAdminPassword error', e); }
+}
 
 // 首次登录：从 Supabase 拉取全部数据
 async function supaLoadAll(){
