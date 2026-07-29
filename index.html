@@ -764,7 +764,7 @@ function getWorklogs(){ return getStore('wt_worklogs') }
 function getProjectCategories(){ return getStore('wt_project_categories') }
 function getWorkhourTypes(){ return getStore('wt_workhour_types') }
 function getWorkhourTypeNames(){ return getStore('wt_workhour_type_names') }
-function getAdminPassword(){ return localStorage.getItem('wt_admin_pwd') || 'admin123'; }
+function getAdminPassword(){ var raw = localStorage.getItem('wt_admin_pwd'); if(!raw) return 'admin123'; try { var p = JSON.parse(raw); return typeof p === 'string' ? p : raw; } catch(e){ return raw; } }
 function setAdminPassword(pwd){ localStorage.setItem('wt_admin_pwd', pwd); supaSet('wt_admin_pwd', pwd); }
 
 // 首次登录：从 Supabase 拉取全部数据
@@ -784,7 +784,7 @@ async function supaLoadAll(){
           if(!isEmptyData(localData) && isEmptyData(remoteData)) return;
         } catch(e){}
       }
-      localStorage.setItem(r.id, JSON.stringify(remoteData));
+      localStorage.setItem(r.id, typeof remoteData === 'string' ? remoteData : JSON.stringify(remoteData));
     });
     return true;
   } catch(e){ return false; }
@@ -808,7 +808,7 @@ async function syncFromServer(){
           if(!isEmptyData(localData) && isEmptyData(remoteData)) return;
         } catch(e){}
       }
-      var remote = JSON.stringify(remoteData);
+      var remote = typeof remoteData === 'string' ? remoteData : JSON.stringify(remoteData);
       if(cur !== remote){
         // 云端记录时间戳比本地同步时间戳新时才覆盖（避免本地最新修改被旧云端覆盖）
         var localSyncAt = localStorage.getItem('wt_sync_at_' + r.id);
