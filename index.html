@@ -449,6 +449,12 @@ tbody tr:hover{background:#f8f9fb}
 </div>
 <div class="ot-warning" id="wlTotalWarning" style="display:none;margin-top:8px">⚠️ 总工时超出标准打卡时间范围，请调整</div>
 
+<div class="form-group mt-15">
+  <label>👤 选择一级审批人 <span style="color:#f5576c">*</span></label>
+  <select id="wlLevel1Approver" required style="font-size:15px">
+    <option value="">请选择审批人</option>
+  </select>
+</div>
 <button type="submit" class="btn btn-primary mt-15">📤 提交工时（共 <span id="wlSubmitCount">0</span> 条）</button>
 </form>
 </div>
@@ -761,6 +767,20 @@ function setStore(key,val){ return supaSet(key,val); }
 function getEmployees(){ return getStore('wt_employees') }
 function getProjects(){ return getStore('wt_projects') }
 function getWorklogs(){ return getStore('wt_worklogs') }
+
+// 刷新一级审批人下拉列表
+function refreshApproverSelect(){
+  var sel = document.getElementById('wlLevel1Approver');
+  if(!sel) return;
+  var level1Approvers = getEmployees().filter(function(e){ return e.role==='approver' && e.approvalLevel===1; });
+  var currentVal = sel.value;
+  sel.innerHTML = '<option value="">请选择审批人</option>' + level1Approvers.map(function(a){
+    return '<option value="'+escHtml(a.id)+'|'+escHtml(a.name)+'">'+escHtml(a.name)+'（'+escHtml(a.department||'')+'）</option>';
+  }).join('');
+  if(currentVal){
+    for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===currentVal){ sel.selectedIndex=i; break; } }
+  }
+}
 function getProjectCategories(){ return getStore('wt_project_categories') }
 function getWorkhourTypes(){ return getStore('wt_workhour_types') }
 function getWorkhourTypeNames(){ return getStore('wt_workhour_type_names') }
@@ -1138,7 +1158,10 @@ function getWorklogLevel(w){
 function getWorklogStatusText(w){
   if(w.status==='已审批') return '已审批';
   if(w.status==='已驳回') return '已驳回';
-  if(w.status==='待审批' || w.status==='待一级审批') return '待一级审批';
+  if(w.status==='待审批' || w.status==='待一级审批'){
+    if(w.level1ApproverName) return '待'+w.level1ApproverName+'审批';
+    return '待一级审批';
+  }
   if(w.status==='待二级审批') return '待二级审批';
   if(w.status==='待三级审批') return '待三级审批';
   return '待一级审批';
@@ -1161,9 +1184,13 @@ function approvalProgressHtml(w){
   var html = '';
   for(var i=1; i<=maxLevels; i++){
     if(i < currentLevel){
-      html += '<span class="ap-step done">✓'+levelNames[i-1]+'级</span>';
+      var doneLabel = '✓'+levelNames[i-1]+'级';
+      if(i===1 && w.level1ApproverName) doneLabel = '✓'+w.level1ApproverName;
+      html += '<span class="ap-step done">'+doneLabel+'</span>';
     } else if(i === currentLevel){
-      html += '<span class="ap-step current">'+levelNames[i-1]+'级待审</span>';
+      var label = levelNames[i-1]+'级待审';
+      if(i===1 && w.level1ApproverName) label = w.level1ApproverName+'待审';
+      html += '<span class="ap-step current">'+label+'</span>';
     } else {
       html += '<span class="ap-step pending">'+levelNames[i-1]+'级</span>';
     }
@@ -1557,6 +1584,7 @@ function populateWorklogForm(){
   document.getElementById('wlDate').value = new Date().toISOString().split('T')[0];
   addWorklogEntry();
   calcWorklogTotal();
+  refreshApproverSelect();
 }
 
 // ==================== 保留工具函数（兼容其他模块） ====================
@@ -1586,6 +1614,13 @@ function handleAddWorklog(e){
   var STANDARD = ws.standardHours;
 
   if(entries.length === 0){ alert('请至少添加一个项目！'); return; }
+
+  // 一级审��人验证
+  var approverSel = document.getElementById('wlLevel1Approver');
+  if(!approverSel || !approverSel.value){ alert('请选择一级审批人！'); return; }
+  var approverParts = approverSel.value.split('|');
+  var level1ApproverId = approverParts[0];
+  var level1ApproverName = approverParts[1] || '';
 
   var worklogs = getWorklogs();
   var totalAllHours = 0;
@@ -1635,6 +1670,8 @@ function handleAddWorklog(e){
       content: content,
       status: '待一级审批',
       currentLevel: 1,
+      level1ApproverId: level1ApproverId,
+      level1ApproverName: level1ApproverName,
       approvalHistory: []
     });
   }
@@ -1712,6 +1749,13 @@ function editMyWorklog(id){
     return '<option value="'+escHtml(n.name)+'"'+(n.name===wl.workhourTypeName?' selected':'')+'>'+escHtml(n.name)+'</option>';
   }).join('');
 
+  // 一级审批人下拉
+  var level1Approvers = getEmployees().filter(function(e){ return e.role==='approver' && e.approvalLevel===1; });
+  var approverOptions = '<option value="">请选择审批人</option>' + level1Approvers.map(function(a){
+    var sel = (wl.level1ApproverId===a.id) ? ' selected' : '';
+    return '<option value="'+escHtml(a.id)+'|'+escHtml(a.name)+'"'+sel+'>'+escHtml(a.name)+'（'+escHtml(a.department||'')+'）</option>';
+  }).join('');
+
   openEditModal(
     '📝 编辑工时记录',
     '修改后将自动重新提交为「待审批」状态',
@@ -1728,7 +1772,8 @@ function editMyWorklog(id){
       '<div class="form-group" style="margin-bottom:0"><label>正常工时(h) *</label><input type="number" step="0.5" min="0" max="24" id="editWlNh" value="'+(wl.normalHours||0)+'"></div>' +
       '<div class="form-group" style="margin-bottom:0"><label>加班工时(h)</label><input type="number" step="0.5" min="0" max="24" id="editWlOh" value="'+(wl.overtimeHours||0)+'"></div>' +
     '</div>' +
-    '<div class="form-group" style="margin-bottom:8px"><label>工作内容 *</label><textarea id="editWlContent" rows="2">'+escHtml(wl.content||'')+'</textarea></div>',
+    '<div class="form-group" style="margin-bottom:8px"><label>工作内容 *</label><textarea id="editWlContent" rows="2">'+escHtml(wl.content||'')+'</textarea></div>' +
+    '<div class="form-group" style="margin-bottom:8px"><label>👤 一级审批人 <span style="color:#f5576c">*</span></label><select id="editWlApprover" required>'+approverOptions+'</select></div>',
     async function(){
       var newDate = document.getElementById('editWlDate').value;
       var newCat = document.getElementById('editWlCat').value;
@@ -1748,6 +1793,13 @@ function editMyWorklog(id){
       if(!newContent){ alert('请填写工作内容！'); return; }
       if((newNh + newOh) > 24){ alert('单项目总工时不能超过 24 小时！'); return; }
 
+      // 一级审批人验证
+      var editApproverVal = document.getElementById('editWlApprover').value;
+      if(!editApproverVal){ alert('请选择一级审批人！'); return; }
+      var ap = editApproverVal.split('|');
+      var editApproverId = ap[0];
+      var editApproverName = ap[1] || '';
+
       var proj = getProjects().find(function(p){ return p.code===newProjCode });
       wl.date = newDate;
       wl.category = newCat;
@@ -1762,6 +1814,8 @@ function editMyWorklog(id){
       wl.content = newContent;
       wl.status = '待一级审批'; // 重新提交审批
       wl.currentLevel = 1;
+      wl.level1ApproverId = editApproverId;
+      wl.level1ApproverName = editApproverName;
       wl.approvalHistory = [];
 
       try {
@@ -1844,13 +1898,20 @@ async function approveBatch(batchRef){
     var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
     if(key===batchRef && isWorklogPending(w)){
       var currentLevel = getWorklogLevel(w);
-      if(currentUser.role!=='admin' && approverLevel!==currentLevel){
-        unauthorized = true;
+      if(currentUser.role!=='admin'){
+        // 一级审批：必须是指定的审批人
+        if(currentLevel===1 && w.level1ApproverId && w.level1ApproverId!==currentUser.id){
+          unauthorized = true;
+        }
+        // 其他级别：审批层级匹配
+        else if(approverLevel!==currentLevel){
+          unauthorized = true;
+        }
       }
     }
   });
   if(unauthorized){
-    alert('⚠️ 您无权审批当前层级的工时！\n该批次工时不在您的审批层级范围内。');
+    alert('⚠️ 您无权审批当前层级的工时！\n该批次工时不在您的审批层级范围内，或您不是指定的审批人。');
     return;
   }
   if(!confirm('确定通过该批次所有工时记录？')) return;
@@ -1899,13 +1960,20 @@ async function rejectBatch(batchRef){
     var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
     if(key===batchRef && isWorklogPending(w)){
       var currentLevel = getWorklogLevel(w);
-      if(currentUser.role!=='admin' && approverLevel!==currentLevel){
-        unauthorized = true;
+      if(currentUser.role!=='admin'){
+        // 一级审批：必须是指定的审批人
+        if(currentLevel===1 && w.level1ApproverId && w.level1ApproverId!==currentUser.id){
+          unauthorized = true;
+        }
+        // 其他级别：审批层级匹配
+        else if(approverLevel!==currentLevel){
+          unauthorized = true;
+        }
       }
     }
   });
   if(unauthorized){
-    alert('⚠️ 您无权审批当前层级的工时！\n该批次工时不在您的审批层级范围内。');
+    alert('⚠️ 您无权审批当前层级的工时！\n该批次工时不在您的审批层级范围内，或您不是指定的审批人。');
     return;
   }
   if(!confirm('确定驳回该批次所有工时记录？')) return;
@@ -2091,17 +2159,23 @@ function renderPendingWorklogs(){
   var fc = document.getElementById('filterPendingCategory').value;
   var fp = document.getElementById('filterPendingProject').value;
   
-  // 按审批人层级过滤待审批工时
+  // 按审批人��级过滤待审批工时
   var approverLevel = currentUser.approvalLevel||1;
   var levelNames = ['一','二','三'];
   var levelDescs = ['项目负责人','人事','总经理'];
+  var isAdmin = currentUser.role==='admin';
   var levelHint = document.getElementById('pendingLevelHint');
   if(levelHint){
     levelHint.textContent = '您当前为' + levelNames[approverLevel-1] + '级审核（' + levelDescs[approverLevel-1] + '），仅显示待您审批的工时记录';
   }
   var pendingLogs = allWorklogs.filter(function(w){
     if(!isWorklogPending(w)) return false;
-    return getWorklogLevel(w) === approverLevel;
+    if(isAdmin) return true; // 管理员可审批所有层级
+    var wl = getWorklogLevel(w);
+    if(wl !== approverLevel) return false;
+    // 一级审批：优先匹配指定审批人（兼容旧数据无 level1ApproverId 的情况）
+    if(wl===1 && w.level1ApproverId && w.level1ApproverId!==currentUser.id) return false;
+    return true;
   }).sort(function(a,b){ return b.id-a.id });
   
   if(fc) pendingLogs = pendingLogs.filter(function(w){ return w.category===fc });
