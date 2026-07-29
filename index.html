@@ -1,0 +1,3062 @@
+<html lang="zh-CN"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- v20260729-03 no-cache fix -->
+<title>"新元纪科技（湖南）有限公司研发工时管理系统"</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;background:#f0f2f5;min-height:100vh;color:#333}
+
+/* ===== 登录层 ===== */
+.login-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-card{background:#fff;border-radius:20px;padding:40px;width:440px;max-width:95%;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+#editModal .login-card{max-height:85vh;overflow-y:auto;padding:30px 35px}
+.login-card h2{font-size:26px;margin-bottom:6px;text-align:center;color:#1a1a2e}
+.login-card .subtitle{text-align:center;color:#888;margin-bottom:30px;font-size:14px}
+.login-card .role-select{display:flex;gap:12px;margin-bottom:25px}
+.login-card .role-option{flex:1;padding:16px 12px;border:2px solid #e0e5ec;border-radius:12px;text-align:center;cursor:pointer;transition:all 0.3s;background:#fafbfc}
+.login-card .role-option:hover{border-color:#667eea;background:#f0f3ff}
+.login-card .role-option.selected{border-color:#667eea;background:#eef0ff;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+.login-card .role-option .icon{font-size:32px;display:block;margin-bottom:8px}
+.login-card .role-option .label{font-weight:600;font-size:15px;color:#1a1a2e}
+.login-card .role-option .desc{font-size:12px;color:#888;margin-top:4px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;margin-bottom:6px;font-weight:600;color:#444;font-size:14px}
+.form-group select,.form-group input,.form-group textarea{width:100%;padding:11px 14px;background:#f8f9fb;border:1px solid #dde0e5;border-radius:10px;color:#333;font-size:14px;transition:all 0.3s}
+.form-group select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;background-color:#f8f9fb}
+.form-group select option{background:#fff;color:#333}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1);background:#fff}
+.form-group textarea{resize:vertical;min-height:70px}
+.login-card .btn-login{width:100%;padding:13px;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.3s;color:#fff;background:linear-gradient(135deg,#667eea,#764ba2)}
+.login-card .btn-login:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(102,126,234,0.3)}
+.login-card .btn-login:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+
+/* ===== 顶部栏 ===== */
+.topbar{background:#fff;border-bottom:1px solid #e8ecf0;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.topbar-inner{max-width:1400px;margin:0 auto;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.topbar-brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;color:#1a1a2e}
+.topbar-brand span{color:#667eea}
+.topbar-user{display:flex;align-items:center;gap:10px;font-size:14px;color:#666}
+.topbar-user .role-badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#eef0ff;color:#667eea}
+.topbar-user .btn-logout{padding:6px 16px;border:1px solid #dde0e5;border-radius:8px;background:#fff;color:#666;cursor:pointer;font-size:13px;transition:all 0.3s}
+.topbar-user .btn-logout:hover{background:#fff0f0;border-color:#eb3349;color:#eb3349}
+.sync-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;margin-right:4px}
+.sync-badge.online{background:#e8f5e9;color:#2e7d32}
+.sync-badge.offline{background:#fff3e0;color:#e65100}
+.sync-badge .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.sync-badge.online .dot{background:#2e7d32;animation:pulse-dot 2s infinite}
+.sync-badge.offline .dot{background:#e65100}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.3}}
+.btn-sync{padding:5px 12px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;color:#555;cursor:pointer;font-size:12px;transition:all 0.3s;display:inline-flex;align-items:center;gap:4px}
+.btn-sync:hover{background:#f0f2ff;border-color:#667eea;color:#667eea}
+.sync-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10001;display:none;justify-content:center;align-items:center}
+.sync-modal{background:#fff;border-radius:16px;padding:28px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.sync-modal h3{margin:0 0 8px;font-size:18px}
+.sync-modal textarea{width:100%;height:180px;border:1px solid #d0d5dd;border-radius:10px;padding:12px;font-size:12px;font-family:monospace;resize:vertical}
+.sync-modal textarea:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+
+/* ===== 导航栏 ===== */
+.navbar{background:#fff;border-bottom:1px solid #e8ecf0}
+.nav-inner{max-width:1400px;margin:0 auto;padding:0 20px;display:flex;gap:4px;overflow-x:auto}
+.nav-link{padding:12px 20px;border:none;background:transparent;color:#666;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap;border-bottom:3px solid transparent;transition:all 0.3s}
+.nav-link:hover{color:#1a1a2e;background:#f8f9fb}
+.nav-link.active{color:#667eea;border-bottom-color:#667eea;background:#f8f9fb}
+
+/* ===== 主内容 ===== */
+.main-content{max-width:1400px;margin:0 auto;padding:24px 20px}
+.tab{display:none;animation:fadeIn 0.3s ease}
+.tab.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== 卡片 ===== */
+.card{background:#fff;border:1px solid #e8ecf0;border-radius:16px;padding:28px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.card h2{font-size:20px;color:#1a1a2e;margin-bottom:6px}
+.card .subtitle{color:#888;font-size:13px;margin-bottom:20px}
+
+/* ===== 统计卡片 ===== */
+.dashboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:#fff;border:1px solid #e8ecf0;border-radius:14px;padding:22px;display:flex;align-items:center;gap:16px;transition:transform 0.3s,box-shadow 0.3s;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,0.08)}
+.stat-card.clickable{cursor:pointer;position:relative}
+.stat-card.clickable::after{content:'→';position:absolute;top:8px;right:14px;font-size:16px;color:#ccc;transition:all 0.3s;opacity:0;transform:translateX(-6px)}
+.stat-card.clickable:hover::after{opacity:1;transform:translateX(0);color:#667eea}
+.stat-icon{width:55px;height:55px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.stat-icon.blue{background:#eef0ff;color:#667eea}
+.stat-icon.green{background:#e6f7f0;color:#11998e}
+.stat-icon.orange{background:#fff4f0;color:#f5576c}
+.stat-icon.cyan{background:#e6f5ff;color:#4facfe}
+.stat-icon.purple{background:#f4f0ff;color:#764ba2}
+.stat-info h3{font-size:26px;color:#1a1a2e}
+.stat-info p{color:#888;font-size:13px;margin-top:3px}
+
+/* ===== 表单 ===== */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+
+/* ===== 按钮 ===== */
+.btn{padding:10px 24px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.3s;color:#fff}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(0,0,0,0.15)}
+.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2)}
+.btn-success{background:linear-gradient(135deg,#11998e,#38ef7d)}
+.btn-warning{background:linear-gradient(135deg,#f5af19,#f12711)}
+.btn-info{background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff}
+.btn-sm{padding:6px 14px;font-size:12px;border-radius:8px}
+.btn-danger{background:linear-gradient(135deg,#eb3349,#f45c43)}
+.btn-white{background:#fff;color:#667eea;border:1px solid #667eea}
+.btn-outline{padding:6px 14px;font-size:12px;border-radius:8px;background:transparent;border:1px solid #dde0e5;color:#666;cursor:pointer;transition:all 0.3s}
+.btn-outline:hover{background:#f8f9fb;color:#333;border-color:#bbb}
+.mt-15{margin-top:15px}
+
+/* ===== 表格 ===== */
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid #e8ecf0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:#f5f7fa}
+th,td{padding:11px 14px;text-align:left;border-bottom:1px solid #eef0f2}
+th{font-weight:600;color:#555;white-space:nowrap;font-size:13px}
+td{color:#444}
+tbody tr{transition:background 0.2s}
+tbody tr:hover{background:#f8f9fb}
+
+/* ===== 徽章 ===== */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-success{background:#e6f7f0;color:#11998e}
+.badge-warning{background:#fff8e6;color:#d4a200}
+.badge-blue{background:#eef0ff;color:#667eea}
+.badge-info{background:#e6f5ff;color:#4facfe}
+.empty-row td{text-align:center;padding:40px;color:#aaa}
+
+/* ===== 筛选导出 ===== */
+.export-section{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+.export-section select,.export-section input{padding:10px 14px;background:#f8f9fb;border:1px solid #dde0e5;border-radius:10px;color:#333;font-size:14px}
+.export-section select option{background:#fff;color:#333}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.filter-bar select,.filter-bar input{padding:9px 12px;background:#f8f9fb;border:1px solid #dde0e5;border-radius:8px;color:#333;font-size:13px}
+.filter-bar select option{background:#fff;color:#333}
+
+/* ===== 工时统计面板 ===== */
+.stats-panel{background:linear-gradient(135deg,#f8f9fb 0%,#f0f4ff 100%);border:1px solid #e0e6f0;border-radius:16px;padding:20px;margin-bottom:20px}
+.stats-panel h3{margin:0 0 16px 0;font-size:16px;color:#1a1a2e;display:flex;align-items:center;gap:8px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:16px}
+.stat-card{background:#fff;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.04);border:1px solid #e8ecf0}
+.stat-value{font-size:24px;font-weight:700;color:#667eea;line-height:1.2}
+.stat-label{font-size:12px;color:#888;margin-top:4px}
+.stat-value.ot{color:#f5a623}
+.stat-value.total{color:#11998e}
+.stats-tables{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.stats-table{background:#fff;border-radius:12px;padding:16px;border:1px solid #e8ecf0}
+.stats-table h4{margin:0 0 12px 0;font-size:14px;color:#1a1a2e}
+.stats-table table{width:100%;border-collapse:collapse;font-size:13px}
+.stats-table th{text-align:left;padding:8px 10px;background:#f8f9fb;color:#666;font-weight:600;border-bottom:1px solid #e8ecf0}
+.stats-table td{padding:8px 10px;border-bottom:1px solid #f0f0f0;color:#333}
+.stats-table td:last-child{text-align:right;font-weight:600;color:#667eea}
+.stats-table tr:last-child td{border-bottom:none}
+.stats-empty{color:#999;font-size:13px;text-align:center;padding:20px}
+
+/* ===== 员工角色切换 ===== */
+.role-toggle{padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #dde0e5;background:#fff;color:#666;transition:all 0.3s}
+.role-toggle.approver{border-color:#11998e;background:#e6f7f0;color:#11998e}
+.role-toggle.employee{border-color:#667eea;background:#eef0ff;color:#667eea}
+.role-toggle.viewer{border-color:#764ba2;background:#f4f0ff;color:#764ba2}
+
+/* ===== 加班区段 ===== */
+.overtime-section{display:none;grid-column:1/-1;padding:16px 20px;background:#fff8e6;border:1px solid #ffe0a0;border-radius:12px;margin-top:4px}
+.overtime-section.show{display:block;animation:fadeIn 0.3s ease}
+.overtime-section label{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:#b8860b;margin-bottom:10px}
+.overtime-section input[type="checkbox"]{width:18px;height:18px;accent-color:#f5af19;cursor:pointer}
+.ot-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.ot-row .form-group{flex:1;min-width:140px}
+.ot-total{padding:8px 20px;border-radius:10px;font-weight:700;font-size:15px;display:inline-flex;align-items:center;gap:8px}
+.ot-total.normal{background:#e6f7f0;color:#11998e}
+.ot-total.warn{background:#fff0f0;color:#eb3349;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(235,51,73,0.3)}50%{box-shadow:0 0 0 8px rgba(235,51,73,0)}}
+.ot-warning{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#fff0f0;border:1px solid #ffd0d0;border-radius:10px;color:#eb3349;font-size:13px;font-weight:600;margin-top:8px}
+.ot-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin-left:4px}
+.ot-badge.ot{background:#fff0f0;color:#eb3349}
+.ot-badge.normal{background:#e6f7f0;color:#11998e}
+
+/* ===== 多项目填报条目 ===== */
+.wl-entry{border:1px solid #e0e5ec;border-radius:14px;padding:18px 20px;margin-bottom:14px;background:#fafbfc;position:relative;transition:all 0.3s}
+.wl-entry:hover{border-color:#667eea;box-shadow:0 2px 8px rgba(102,126,234,0.08)}
+.wl-entry .entry-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.wl-entry .entry-num{font-weight:700;font-size:14px;color:#667eea}
+.wl-entry .entry-remove{width:28px;height:28px;border-radius:50%;border:1px solid #e0e5ec;background:#fff;color:#eb3349;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0}
+.wl-entry .entry-remove:hover{background:#fff0f0;border-color:#eb3349}
+.wl-entry:only-of-type .entry-remove{display:none !important}
+.wl-entry-ot{display:none;margin-top:10px;padding-top:12px;border-top:1px dashed #e0e5ec}
+.wl-entry-ot.show{display:block}
+.entry-ot-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.wl-total-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#f8f9fb;border-radius:12px;margin-top:14px;border:1px solid #e0e5ec}
+.wl-total-bar .total-label{font-weight:600;color:#333}
+.wl-total-bar .total-value{font-weight:700;font-size:18px;color:#667eea}
+.wl-total-bar.warn{border-color:#eb3349;background:#fff5f5}
+.wl-total-bar.warn .total-value{color:#eb3349;animation:pulse 2s infinite}
+.wl-add-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border:2px dashed #d0d5e0;border-radius:12px;background:transparent;color:#667eea;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.3s}
+.wl-add-btn:hover{border-color:#667eea;background:#f0f3ff}
+
+/* ===== 审批批处理分组行 ===== */
+.batch-row{cursor:pointer;transition:background 0.2s}
+.batch-row:hover{background:#f5f7ff !important}
+.batch-row .project-count{display:inline-block;padding:2px 10px;border-radius:12px;background:#eef0ff;color:#667eea;font-size:11px;font-weight:700;margin-left:8px}
+.batch-detail-row{display:none}
+.batch-detail-row.show{display:table-row}
+.batch-detail-row td{padding:0 20px 12px !important;background:#fafbfd}
+.batch-detail-table{width:100%;border-collapse:collapse;font-size:13px}
+.batch-detail-table td{padding:6px 10px !important;border-bottom:1px solid #f0f0f0}
+.batch-detail-table tr:last-child td{border-bottom:none}
+.batch-toggle{display:inline-block;transition:transform 0.3s;font-size:12px;color:#888;margin-right:6px}
+.batch-toggle.open{transform:rotate(90deg)}
+
+/* ===== 审批进度指示器 ===== */
+.approval-progress{display:inline-flex;align-items:center;gap:4px;font-size:12px;flex-wrap:wrap}
+.ap-step{padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap}
+.ap-step.done{background:#e6f7f0;color:#11998e}
+.ap-step.current{background:#fff8e6;color:#d4a200;border:1px solid #ffe0a0}
+.ap-step.pending{background:#f5f5f5;color:#bbb}
+.ap-arrow{color:#ddd;font-size:11px}
+.ap-step.rejected{background:#fff0f0;color:#eb3349}
+.level-badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600;margin-left:4px}
+.level-badge.lv1{background:#eef0ff;color:#667eea}
+.level-badge.lv2{background:#e6f5ff;color:#4facfe}
+.level-badge.lv3{background:#f4f0ff;color:#764ba2}
+
+/* ===== 移动端响应式 ===== */
+@media(max-width:768px){
+  .dashboard{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .nav-link{padding:10px 14px;font-size:13px}
+  .topbar-inner{flex-direction:column;text-align:center}
+  .login-card{width:95%;padding:24px 20px}
+  .login-card h2{font-size:22px}
+  .login-card .role-select{flex-wrap:wrap;gap:8px}
+  .login-card .role-option{padding:12px 8px;font-size:13px}
+  .login-card .role-option .icon{font-size:24px}
+  .card{padding:16px}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:600px;font-size:13px}
+  table th,table td{padding:8px 10px}
+  .stat-card{padding:16px;gap:12px}
+  .stat-icon{width:42px;height:42px;font-size:20px;border-radius:10px}
+  .stat-info h3{font-size:20px}
+  .stat-info p{font-size:12px}
+  .batch-detail-table{font-size:12px}
+  .wl-entry .form-grid{grid-template-columns:1fr}
+  .export-section{flex-wrap:wrap}
+  .export-section input[type="month"]{width:100%}
+  /* 适配小屏手机(320-480px) */
+  @media(max-width:480px){
+    .login-card{padding:16px 14px}
+    .topbar-brand{font-size:15px}
+    .nav-menu{overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+    .nav-link{font-size:12px;padding:8px 10px;flex-shrink:0}
+    .stat-card{flex-direction:column;text-align:center;padding:14px}
+    .stat-info{text-align:center}
+    .btn{padding:8px 12px;font-size:12px}
+    .batch-row td{font-size:12px;padding:8px 6px}
+  }
+}
+</style>
+<script src="https://beacon.cdn.qq.com/sdk/4.5.9/beacon_web.min.js"></script>
+<script>
+(function(){
+  try{
+    var beacon=new BeaconAction({
+      appkey:'0WEB06U85YBSLJNL',
+      versionCode:'1.0.0',
+      channelID:'share',
+      delay:1000,
+      sessionDuration:30*60*1000,
+      isOversea:false,
+      needReportRqdEvent:false
+    });
+    beacon.onDirectUserAction('preview_page_view',{
+      'url':location.href,
+      'referrer':document.referrer,
+      'title':document.title,
+      'sandbox_id':'75915916dfe64c61a527e1a05319f72c'
+    });
+  }catch(e){}
+})();
+</script></head>
+<body>
+
+<!-- ==================== 登录层 ==================== -->
+<div class="login-overlay" id="loginOverlay">
+<div class="login-card">
+<h2 id="loginTitle">🔬 "新元纪科技（湖南）有限公司研发工时管理系统"</h2>
+<p class="subtitle" id="loginSubtitle">请选择身份登录</p>
+
+<div class="role-select" id="roleSelect">
+<div class="role-option" data-role="staff" onclick="selectRole('staff',this)">
+<span class="icon">👨‍💻</span>
+<span class="label">员工/审批人/查看者</span>
+<span class="desc">使用姓名和密码</span>
+</div>
+<div class="role-option" data-role="manager" onclick="selectRole('manager',this)">
+<span class="icon">👔</span>
+<span class="label">管理员登录</span>
+<span class="desc">使用管理员密码</span>
+</div>
+</div>
+
+<!-- 员工/审批人登录表单 -->
+<div id="staffLoginForm" style="display:none">
+  <div class="form-group">
+    <label>姓名</label>
+    <input type="text" id="loginName" placeholder="请输入您的姓名" autocomplete="off">
+  </div>
+  <div class="form-group">
+    <label>密码</label>
+    <input type="password" id="loginPassword" placeholder="请输入密码" autocomplete="off">
+  </div>
+  <div id="loginError" style="color:#f5576c;font-size:13px;margin-bottom:12px;display:none"></div>
+  <button class="btn-login" onclick="doLogin()">进入系统</button>
+  <button class="btn-outline" style="width:100%;margin-top:8px" onclick="showRoleSelect()">← 返回重新选择</button>
+</div>
+
+<!-- 管理员登录表单 -->
+<div id="mgrLoginForm" style="display:none">
+  <div class="form-group">
+    <label>管理员密码</label>
+    <input type="password" id="loginAdminPassword" placeholder="请输入管理员密码" autocomplete="off">
+  </div>
+  <div id="loginErrorMgr" style="color:#f5576c;font-size:13px;margin-bottom:12px;display:none"></div>
+  <button class="btn-login" onclick="doLogin()">进入系统</button>
+  <button class="btn-outline" style="width:100%;margin-top:8px" onclick="showRoleSelect()">← 返回重新选择</button>
+</div>
+
+</div>
+</div>
+
+<!-- ==================== 主界面 ==================== -->
+<div id="appMain" style="display:none">
+
+<!-- 顶部栏 -->
+<div class="topbar">
+<div class="topbar-inner">
+<div class="topbar-brand">🔬 <span id="topbarBrand">"新元纪科技（湖南）有限公司研发工时管理系统"</span></div>
+<div class="topbar-user">
+<span class="sync-badge online" id="syncBadge" style="display: inline-flex;"><span class="dot"></span><span id="syncLabel">多端同步中</span></span>
+<button class="btn-sync" id="btnSyncOpen" onclick="document.getElementById('syncModal').style.display='flex'" title="数据导入/导出" style="display: inline-flex;">📦 同步</button>
+<span id="displayName"></span>
+<span class="role-badge" id="displayRole"></span>
+<button class="btn-logout" onclick="doLogout()">退出登录</button>
+</div>
+</div>
+</div>
+
+<!-- 导航栏 -->
+<nav class="navbar">
+<div class="nav-inner" id="navMenu"></div>
+</nav>
+
+<!-- ===== 同步更新提示 ===== -->
+<div id="syncUpdateBanner" style="display:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:10px 20px;text-align:center;font-size:13px;font-weight:600;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+  <span>🔔 检测到其他设备有数据更新</span>
+  <button onclick="location.reload()" style="background:rgba(255,255,255,0.25);color:#fff;border:1px solid rgba(255,255,255,0.4);padding:5px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">🔄 刷新查看</button>
+  <button onclick="document.getElementById('syncUpdateBanner').style.display='none'" style="background:transparent;color:rgba(255,255,255,0.8);border:none;cursor:pointer;font-size:18px;line-height:1">×</button>
+</div>
+
+<!-- 主内容 -->
+<main class="main-content">
+
+<!-- ===== 首页 Dashboard ===== -->
+<div class="tab active" id="tab-dashboard">
+<div class="dashboard" id="dashboardStats"></div>
+<div class="card" id="changePwdCard" style="display:none">
+  <h2>🔒 账号安全</h2>
+  <p class="subtitle">修改您的登录密码</p>
+  <button class="btn btn-warning" onclick="showChangePassword()">🔒 修改我的密码</button>
+</div>
+<div class="card" id="sysNameCard" style="display:none">
+  <h2>🏷️ 系统名称设置</h2>
+  <p class="subtitle">自定义系统标题和品牌名称</p>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>系统名称 *</label>
+      <input type="text" id="sysNameInput" placeholder="例如：AI探矿研发工时管理系统" style="font-size:15px" oninput="previewSysName()">
+    </div>
+  </div>
+  <div id="sysNamePreview" style="margin-top:10px;padding:10px 16px;background:#f0f3ff;border-radius:10px;font-size:14px;color:#667eea;font-weight:600"></div>
+  <button class="btn btn-primary mt-15" onclick="saveSysName()">💾 保存名称</button>
+  <span id="sysNameMsg" style="margin-left:12px;font-size:13px"></span>
+</div>
+<div class="card" id="worktimeCard" style="display:none">
+  <h2>⚙️ 标准工时区间设置</h2>
+  <p class="subtitle">设置每日标准工时、打卡时间范围（影响加班预警）</p>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>每日标准工时(h) *</label>
+      <input type="number" id="wtStandardHours" step="0.5" min="1" max="24" value="8" style="font-size:16px;font-weight:600" oninput="previewWorktime()">
+    </div>
+    <div class="form-group">
+      <label>上班时间 *</label>
+      <input type="time" id="wtStartTime" value="09:00" oninput="previewWorktime()">
+    </div>
+    <div class="form-group">
+      <label>下班时间 *</label>
+      <input type="time" id="wtEndTime" value="18:00" oninput="previewWorktime()">
+    </div>
+  </div>
+  <div id="wtPreview" style="margin-top:12px;padding:10px 16px;background:#f0f3ff;border-radius:10px;font-size:14px;color:#667eea;font-weight:600"></div>
+  <button class="btn btn-primary mt-15" onclick="saveWorktimeSettings()">💾 保存设置</button>
+  <span id="wtSaveMsg" style="margin-left:12px;font-size:13px"></span>
+</div>
+<div class="card" id="approvalLevelCard" style="display:none">
+  <h2>📋 审批流程设置</h2>
+  <p class="subtitle">设置工时审批的层级数量（1-3级），员工提交后按层级逐级审批</p>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>审批层级数 *</label>
+      <select id="approvalLevelCount" style="font-size:16px;font-weight:600" onchange="previewApprovalLevels()">
+        <option value="1">1级审批（单级审批，兼容旧流程）</option>
+        <option value="2">2级审批（两级审核）</option>
+        <option value="3">3级审批（项目负责人 → 人事 → 总经理）</option>
+      </select>
+    </div>
+  </div>
+  <div id="approvalLevelPreview" style="margin-top:12px;padding:10px 16px;background:#f0f3ff;border-radius:10px;font-size:14px;color:#667eea;font-weight:600"></div>
+  <button class="btn btn-primary mt-15" onclick="saveApprovalLevels()">💾 保存设置</button>
+  <span id="approvalLevelSaveMsg" style="margin-left:12px;font-size:13px"></span>
+</div>
+<div class="card" id="adminPwdCard" style="display:none">
+  <h2>🔑 管理员设置</h2>
+  <p class="subtitle">修改管理员登录密码</p>
+  <button class="btn btn-warning" onclick="showAdminChangePwd()">🔑 修改管理员密码</button>
+</div>
+</div>
+
+<!-- ===== 工时填报（员工/审批人） ===== -->
+<div class="tab" id="tab-worklog">
+<div class="card">
+<h2>⏱ 填报工时</h2>
+<p class="subtitle">记录每日研发工时 — 支持同一天多个项目</p>
+<form id="worklogForm" onsubmit="return handleAddWorklog(event)">
+<div class="form-group" style="margin-bottom:16px">
+  <label>日期 *</label>
+  <input type="date" id="wlDate" required="" style="font-size:15px;font-weight:600">
+</div>
+
+<!-- 项目条目容器 -->
+<div id="worklogEntries"></div>
+
+<!-- 添加项目按钮 -->
+<button type="button" class="wl-add-btn" onclick="addWorklogEntry()">＋ 添加项目</button>
+
+<!-- 合计栏 -->
+<div class="wl-total-bar" id="wlTotalBar">
+  <span class="total-label">📊 今日总工时</span>
+  <span class="total-value" id="wlTotalValue">0h</span>
+</div>
+<div class="ot-warning" id="wlTotalWarning" style="display:none;margin-top:8px">⚠️ 总工时超出标准打卡时间范围，请调整</div>
+
+<button type="submit" class="btn btn-primary mt-15">📤 提交工时（共 <span id="wlSubmitCount">0</span> 条）</button>
+</form>
+</div>
+<div class="card">
+<h2>📜 我的工时记录</h2>
+<p class="subtitle" id="myWorklogSubtitle"></p>
+<div class="table-wrap"><table>
+<thead><tr><th>日期</th><th>大类</th><th>项目</th><th>工时</th><th>工作内容</th><th>状态</th><th>操作</th></tr></thead>
+<tbody id="myWorklogList"></tbody>
+</table></div>
+</div>
+</div>
+
+<!-- ===== 待审批（审批人） ===== -->
+<div class="tab" id="tab-pending">
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+<h2 style="margin:0">📋 待审批工时</h2>
+<div class="filter-bar">
+<select id="filterPendingCategory" onchange="renderPendingWorklogs()"><option value="">全部大类</option></select>
+<select id="filterPendingProject" onchange="renderPendingWorklogs()"><option value="">全部项目</option></select>
+</div>
+</div>
+<p id="pendingLevelHint" style="color:#888;font-size:13px;margin:-8px 0 16px"></p>
+<div id="pendingWorklogStats"></div>
+<div class="table-wrap"><table>
+<thead><tr><th>日期</th><th>员工</th><th>工时/项目</th><th>工作摘要</th><th>审批进度</th><th>操作</th></tr></thead>
+<tbody id="pendingWorklogList"></tbody>
+</table></div>
+</div>
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+<h2 style="margin:0">✅ 已审批记录</h2>
+<div class="filter-bar">
+<select id="filterApprovedEmployee" onchange="renderPendingWorklogs()"><option value="">全部员工</option></select>
+<select id="filterApprovedMonth" onchange="renderPendingWorklogs()"><option value="">全部月份</option></select>
+<select id="filterApprovedCategory" onchange="renderPendingWorklogs()"><option value="">全部大类</option></select>
+<select id="filterApprovedProject" onchange="renderPendingWorklogs()"><option value="">全部项目</option></select>
+</div>
+</div>
+<div id="approvedFillAnalysis"></div>
+<div id="approvedWorklogStats"></div>
+<div class="table-wrap"><table>
+<thead><tr><th>日期</th><th>员工</th><th>工时/项目</th><th>工作摘要</th><th>状态</th></tr></thead>
+<tbody id="approvedWorklogList"></tbody>
+</table></div>
+</div>
+</div>
+
+<!-- ===== 全部工时（管理员） ===== -->
+<div class="tab" id="tab-allworklogs">
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+<h2 style="margin:0">📜 全部工时记录</h2>
+<div class="filter-bar">
+<select id="filterCategory" onchange="renderAllWorklogs()"><option value="">全部大类</option></select>
+<select id="filterProject" onchange="renderAllWorklogs()"><option value="">全部项目</option></select>
+<select id="filterStatus" onchange="renderAllWorklogs()"><option value="">全部状态</option><option value="待一级审批">待一级审批</option><option value="待二级审批">待二级审批</option><option value="待三级审批">待三级审批</option><option value="已审批">已审批</option><option value="已驳回">已驳回</option></select>
+<select id="filterEmployee" onchange="renderAllWorklogs()"><option value="">全部员工</option></select>
+</div>
+</div>
+<div id="allWorklogStats"></div>
+<div class="table-wrap"><table>
+<thead><tr><th>日期</th><th>员工</th><th>项目</th><th>工时</th><th>工作内容</th><th>状态</th><th>操作</th></tr></thead>
+<tbody id="allWorklogList"></tbody>
+</table></div>
+</div>
+</div>
+
+<!-- ===== 员工管理（管理员） ===== -->
+<div class="tab" id="tab-employees">
+<div class="card">
+<h2>➕ 添加员工</h2>
+<p class="subtitle">管理系统员工信息（默认密码：123456）</p>
+<form id="employeeForm" onsubmit="return handleAddEmployee(event)">
+<div class="form-grid">
+<div class="form-group"><label>工号 *</label><input type="text" id="empId" required="" placeholder="唯一工号"></div>
+<div class="form-group"><label>姓名 *</label><input type="text" id="empName" required="" placeholder="员工姓名"></div>
+<div class="form-group"><label>部门</label><input type="text" id="empDept" placeholder="所属部门"></div>
+<div class="form-group"><label>职位</label><input type="text" id="empPosition" placeholder="职位名称"></div>
+</div>
+<div class="form-group mt-15">
+  <label>角色授权</label>
+  <select id="empRole" onchange="toggleApprovalLevel()">
+    <option value="employee">👨‍💻 员工 — 只能填报工时</option>
+    <option value="approver">✅ 审批人 — 可填报+审批工时</option>
+    <option value="viewer">👁️ 查看者 — 只能查看，不可填报</option>
+  </select>
+</div>
+<div class="form-group mt-15" id="approvalLevelGroup" style="display:none">
+  <label>审批层级 <span style="color:#f5576c">*</span></label>
+  <select id="empApprovalLevel">
+    <option value="1">一级审核（项目负责人）</option>
+    <option value="2">二级审核（人事）</option>
+    <option value="3">三级审核（总经理）</option>
+  </select>
+</div>
+<button type="submit" class="btn btn-primary mt-15">➕ 添加员工</button>
+</form>
+</div>
+<div class="card">
+<h2>👥 员工列表</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职位</th><th>角色</th><th>操作</th></tr></thead>
+<tbody id="employeeListBody"></tbody>
+</table></div>
+</div>
+</div>
+
+<!-- ===== 项目管理（管理员） ===== -->
+<div class="tab" id="tab-projects">
+<div class="card">
+<h2>🏷️ 项目大类管理</h2>
+<p class="subtitle">添加和管理项目大类，用于项目分类</p>
+<form id="categoryForm" onsubmit="return handleAddCategory(event)">
+<div class="form-grid">
+<div class="form-group"><label>大类名称 *</label><input type="text" id="catName" required="" placeholder="如: 基础研究、应用开发、技术攻关"></div>
+<div class="form-group"><label>大类编码</label><input type="text" id="catCode" placeholder="如: CAT001（可留空自动生成）"></div>
+</div>
+<div class="form-group mt-15"><label>大类描述</label><textarea id="catDesc" rows="2" placeholder="项目大类简要描述..."></textarea></div>
+<button type="submit" class="btn btn-info mt-15">🏷️ 添加大类</button>
+</form>
+<div class="table-wrap mt-15"><table>
+<thead><tr><th>编码</th><th>名称</th><th>描述</th><th>操作</th></tr></thead>
+<tbody id="categoryListBody"></tbody>
+</table></div>
+</div>
+<div class="card">
+<h2>⏱️ 工时类型管理</h2>
+<p class="subtitle">添加和管理工时类型，用于工时分类统计</p>
+<form id="workhourTypeForm" onsubmit="return handleAddWorkhourType(event)">
+<div class="form-grid">
+<div class="form-group"><label>类型名称 *</label><input type="text" id="whtName" required="" placeholder="如: 正常工时、加班工时、出差工时"></div>
+<div class="form-group"><label>类型编码</label><input type="text" id="whtCode" placeholder="如: WT001（可留空自动生成）"></div>
+</div>
+<div class="form-group mt-15"><label>类型描述</label><textarea id="whtDesc" rows="2" placeholder="工时类型简要描述..."></textarea></div>
+<button type="submit" class="btn btn-info mt-15">⏱️ 添加工时类型</button>
+</form>
+<div class="table-wrap mt-15"><table>
+<thead><tr><th>编码</th><th>名称</th><th>描述</th><th>操作</th></tr></thead>
+<tbody id="workhourTypeListBody"></tbody>
+</table></div>
+</div>
+<div class="card">
+<h2>📝 工时类型名称管理</h2>
+<p class="subtitle">添加和管理工时类型名称，用于工时明细记录</p>
+<form id="workhourTypeNameForm" onsubmit="return handleAddWorkhourTypeName(event)">
+<div class="form-grid">
+<div class="form-group"><label>类型名称 *</label><input type="text" id="whtnName" required="" placeholder="如: 需求开发、Bug修复、技术评审、文档编写"></div>
+<div class="form-group"><label>类型编码</label><input type="text" id="whtnCode" placeholder="如: WTN001（可留空自动生成）"></div>
+</div>
+<div class="form-group mt-15"><label>类型描述</label><textarea id="whtnDesc" rows="2" placeholder="工时类型名称简要描述..."></textarea></div>
+<button type="submit" class="btn btn-info mt-15">📝 添加类型名称</button>
+</form>
+<div class="table-wrap mt-15"><table>
+<thead><tr><th>编码</th><th>名称</th><th>描述</th><th>操作</th></tr></thead>
+<tbody id="workhourTypeNameListBody"></tbody>
+</table></div>
+</div>
+<div class="card">
+<h2>➕ 添加项目</h2>
+<p class="subtitle">管理研发项目信息</p>
+<form id="projectForm" onsubmit="return handleAddProject(event)">
+<div class="form-grid">
+<div class="form-group"><label>项目编号 *</label><input type="text" id="projCode" required="" placeholder="如: RD2026-001"></div>
+<div class="form-group"><label>项目名称 *</label><input type="text" id="projName" required="" placeholder="项目名称"></div>
+<div class="form-group"><label>开始日期</label><input type="date" id="projStart"></div>
+<div class="form-group"><label>结束日期</label><input type="date" id="projEnd"></div>
+</div>
+<div class="form-group mt-15"><label>项目描述</label><textarea id="projDesc" rows="2" placeholder="项目简要描述..."></textarea></div>
+<button type="submit" class="btn btn-success mt-15">➕ 添加项目</button>
+</form>
+</div>
+<div class="card">
+<h2>📋 项目列表</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>编号</th><th>名称</th><th>开始</th><th>结束</th><th>工时合计</th><th>操作</th></tr></thead>
+<tbody id="projectListBody"></tbody>
+</table></div>
+</div>
+</div>
+
+<!-- ===== 月度导出（管理员） ===== -->
+<div class="tab" id="tab-export">
+<div class="card">
+<h2>📥 月度工时导出</h2>
+<p class="subtitle">按月份导出工时记录和工作日志Excel报表</p>
+<div class="export-section">
+<label style="font-weight:600;color:#444">选择月份：</label>
+<input type="month" id="exportMonth" style="width:200px">
+<button class="btn btn-info" onclick="exportMonthWorklogs()">📥 导出工时汇总</button>
+<button class="btn btn-success" onclick="exportMonthWorklogDetail()">📥 导出工作日志（含内容）</button>
+</div>
+</div>
+<div class="card">
+<h2>📋 月度工时汇总预览</h2>
+<p class="subtitle" id="exportPreviewTitle">请选择月份后点击导出</p>
+<div class="table-wrap"><table>
+<thead><tr><th>员工</th><th>项目</th><th>工时合计(h)</th><th>记录数</th></tr></thead>
+<tbody id="exportPreviewBody"></tbody>
+</table></div>
+</div>
+</div>
+
+</main>
+</div>
+
+<!-- ==================== 修改密码弹窗 ==================== -->
+<div class="login-overlay" id="overlayChangePwd" style="display:none;z-index:10000">
+<div class="login-card">
+  <h2>🔒 修改密码</h2>
+  <p class="subtitle">修改当前登录账号的密码</p>
+  <div class="form-group"><label>原密码</label><input type="password" id="oldPwd" placeholder="请输入当前密码" autocomplete="off"></div>
+  <div class="form-group"><label>新密码</label><input type="password" id="newPwd" placeholder="至少6位" autocomplete="off"></div>
+  <div class="form-group"><label>确认新密码</label><input type="password" id="confirmPwd" placeholder="再次输入新密码" autocomplete="off"></div>
+  <div id="pwdMsg" style="display:none;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
+  <button class="btn-login" onclick="submitChangePassword()">确认修改</button>
+  <button class="btn-outline" style="width:100%;margin-top:8px" onclick="document.getElementById('overlayChangePwd').style.display='none'">取消</button>
+</div>
+</div>
+
+<div class="login-overlay" id="overlayAdminPwd" style="display:none;z-index:10000">
+<div class="login-card">
+  <h2>🔑 修改管理员密码</h2>
+  <p class="subtitle">修改管理员登录密码</p>
+  <div class="form-group"><label>原密码</label><input type="password" id="adminOldPwd" placeholder="请输入当前管理员密码" autocomplete="off"></div>
+  <div class="form-group"><label>新密码</label><input type="password" id="adminNewPwd" placeholder="至少6位" autocomplete="off"></div>
+  <div class="form-group"><label>确认新密码</label><input type="password" id="adminConfirmPwd" placeholder="再次输入新密码" autocomplete="off"></div>
+  <div id="adminPwdMsg" style="display:none;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
+  <button class="btn-login" onclick="submitAdminChangePwd()">确认修改</button>
+  <button class="btn-outline" style="width:100%;margin-top:8px" onclick="document.getElementById('overlayAdminPwd').style.display='none'">取消</button>
+</div>
+</div>
+
+<!-- ===== 数据同步弹窗 ===== -->
+<div class="sync-modal-overlay" id="syncModal">
+<div class="sync-modal">
+  <h3>📦 数据导入/导出</h3>
+  <p style="font-size:13px;color:#888;margin-top:4px" id="syncModalHint">将数据导出后，在另一台设备上导入即可同步</p>
+  <div style="margin-bottom:12px">
+    <button class="btn btn-sm" id="btnExportData" onclick="exportAllData()" style="margin-right:8px">📤 导出全部数据</button>
+    <button class="btn-outline btn-sm" id="btnCopyData" onclick="copyDataToClipboard()">📋 复制到剪贴板</button>
+  </div>
+  <textarea id="importDataArea" placeholder="在此粘贴要导入的数据（JSON格式）..." style="margin-bottom:10px"></textarea>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-sm" onclick="importAllData(false)">📥 导入数据</button>
+    <button class="btn-outline btn-sm" onclick="clearAndImport()" style="color:#e65100;border-color:#e65100">⚠ 覆盖导入（清空旧数据）</button>
+    <button class="btn-outline btn-sm" onclick="document.getElementById('syncModal').style.display='none'" style="margin-left:auto">取消</button>
+  </div>
+  <div id="syncMsg" style="margin-top:10px;font-size:13px;display:none"></div>
+</div>
+</div>
+
+<!-- ===== 编辑弹窗（通用） ===== -->
+<div class="login-overlay" id="editModal" style="display:none;z-index:10001">
+<div class="login-card" style="max-width:520px">
+  <h2 id="editModalTitle">✏️ 编辑</h2>
+  <p class="subtitle" id="editModalSubtitle">修改信息后点击保存</p>
+  <div id="editModalFields"></div>
+  <div id="editModalMsg" style="display:none;padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px"></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-primary" id="editModalSaveBtn" style="flex:1">💾 保存修改</button>
+    <button class="btn-outline" id="editModalCancelBtn" style="flex:1" onclick="closeEditModal()">取消</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ==================== 全局状态 ====================
+var currentUser = null;
+var selectedRole = null;
+
+// ==================== 数据存取（Supabase 云端实时同步） ====================
+var SUPA_URL = 'https://qpwncmerhccqvaekjnnt.supabase.co';
+var SUPA_KEY = 'sb_publishable_h8VZbChE9lHQ1mgATIv7BQ_Y4lcXMU5';
+var SUPA_HEADERS = {'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'};
+var SUPA_SYNC_INTERVAL = 8000; // 每8秒检测远程变化
+var _syncTimer = null;
+var _syncCount = 0;
+
+function getStore(key){ try{ return JSON.parse(localStorage.getItem(key)||'[]') }catch(e){ return[] } }
+
+// 判断数据是否为空（空数组/空对象/空字符串/null）
+function isEmptyData(val){
+  if(val === null || val === undefined) return true;
+  if(typeof val === 'string' && val.trim() === '') return true;
+  if(Array.isArray(val) && val.length === 0) return true;
+  if(typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0) return true;
+  return false;
+}
+
+// 写入 Supabase（异步，不阻塞用户操作）
+async function supaSet(key, val){
+  localStorage.setItem(key, JSON.stringify(val));
+  try {
+    var resp = await fetch(SUPA_URL+'/rest/v1/worktime_data',{
+      method:'POST',
+      headers:Object.assign({},SUPA_HEADERS,{'Prefer':'resolution=merge-duplicates,return=representation'}),
+      body:JSON.stringify({id:key, data:val, updated_at:new Date().toISOString()})
+    });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    var rows = await resp.json();
+    if(rows && rows[0] && rows[0].updated_at){
+      localStorage.setItem('wt_sync_at_' + key, rows[0].updated_at);
+    }
+  } catch(e){ console.error('supaSet error', e); throw e; }
+}
+
+function setStore(key,val){ return supaSet(key,val); }
+function getEmployees(){ return getStore('wt_employees') }
+function getProjects(){ return getStore('wt_projects') }
+function getWorklogs(){ return getStore('wt_worklogs') }
+function getProjectCategories(){ return getStore('wt_project_categories') }
+function getWorkhourTypes(){ return getStore('wt_workhour_types') }
+function getWorkhourTypeNames(){ return getStore('wt_workhour_type_names') }
+function getAdminPassword(){ return localStorage.getItem('wt_admin_pwd') || 'admin123'; }
+function setAdminPassword(pwd){ localStorage.setItem('wt_admin_pwd', pwd); supaSet('wt_admin_pwd', pwd); }
+
+// 首次登录：从 Supabase 拉取全部数据
+async function supaLoadAll(){
+  try {
+    var resp = await fetch(SUPA_URL+'/rest/v1/worktime_data?select=*',{headers:SUPA_HEADERS});
+    if(!resp.ok) return false;
+    var rows = await resp.json();
+    if(!rows||rows.length===0) return false;
+    rows.forEach(function(r){
+      var remoteData = r.data;
+      // 防护：云端数据为空但本地有非空数据 → 不覆盖
+      var localStr = localStorage.getItem(r.id);
+      if(localStr){
+        try {
+          var localData = JSON.parse(localStr);
+          if(!isEmptyData(localData) && isEmptyData(remoteData)) return;
+        } catch(e){}
+      }
+      localStorage.setItem(r.id, JSON.stringify(remoteData));
+    });
+    return true;
+  } catch(e){ return false; }
+}
+
+// 轮询：检测 Supabase 是否有其他设备写入的新数据
+async function syncFromServer(){
+  try {
+    var resp = await fetch(SUPA_URL+'/rest/v1/worktime_data?select=*',{headers:SUPA_HEADERS});
+    if(!resp.ok) return;
+    var rows = await resp.json();
+    if(!rows||rows.length===0) return;
+    var changed = false;
+    rows.forEach(function(r){
+      var remoteData = r.data;
+      // 防护：本地有非空数据，云端为空 → 不覆盖
+      var cur = localStorage.getItem(r.id);
+      if(cur){
+        try {
+          var localData = JSON.parse(cur);
+          if(!isEmptyData(localData) && isEmptyData(remoteData)) return;
+        } catch(e){}
+      }
+      var remote = JSON.stringify(remoteData);
+      if(cur !== remote){
+        // 云端记录时间戳比本地同步时间戳新时才覆盖（避免本地最新修改被旧云端覆盖）
+        var localSyncAt = localStorage.getItem('wt_sync_at_' + r.id);
+        var remoteUpdatedAt = r.updated_at;
+        if(!localSyncAt || !remoteUpdatedAt || remoteUpdatedAt >= localSyncAt){
+          localStorage.setItem(r.id, remote);
+          if(remoteUpdatedAt) localStorage.setItem('wt_sync_at_' + r.id, remoteUpdatedAt);
+          changed = true;
+        }
+      }
+    });
+    if(changed){
+      _syncCount++;
+      var banner = document.getElementById('syncUpdateBanner');
+      if(banner) banner.style.display = 'flex';
+    }
+  } catch(e){}
+}
+
+function startSyncPolling(){
+  if(_syncTimer) return;
+  _syncTimer = setInterval(syncFromServer, SUPA_SYNC_INTERVAL);
+}
+
+// 更新同步状态UI
+function updateSyncUI(){
+  var badge = document.getElementById('syncBadge');
+  var btn = document.getElementById('btnSyncOpen');
+  var label = document.getElementById('syncLabel');
+  if(!badge||!btn) return;
+  badge.style.display = 'inline-flex';
+  badge.className = 'sync-badge online';
+  label.textContent = '多端同步中';
+  btn.style.display = 'inline-flex'; // 保留手动导入导出入口
+}
+
+// 首次初始化：把所有localStorage数据推送到Supabase
+function pushAllToSupabase(){
+  var keys = ['wt_employees','wt_projects','wt_project_categories','wt_workhour_types','wt_workhour_type_names','wt_worklogs','wt_worktime','wt_sys_name','wt_admin_pwd','wt_approval_levels'];
+  keys.forEach(function(k){
+    var val = localStorage.getItem(k);
+    if(val){
+      var data = null;
+      try { data = JSON.parse(val); } catch(e){ data = val; }
+      // 防护：不推送空数据到云端（避免覆盖其他设备已有的真实数据）
+      if(isEmptyData(data)) return;
+      supaSet(k, data);
+    }
+  });
+}
+
+// ==================== 数据导入/导出 ====================
+function exportAllData(){
+  var data = {
+    wt_employees: getEmployees(),
+    wt_projects: getProjects(),
+    wt_project_categories: getProjectCategories(),
+    wt_workhour_types: getWorkhourTypes(),
+    wt_workhour_type_names: getWorkhourTypeNames(),
+    wt_worklogs: getWorklogs(),
+    wt_worktime: JSON.parse(localStorage.getItem('wt_worktime')||'{}'),
+    wt_sys_name: localStorage.getItem('wt_sys_name')||'',
+    wt_approval_levels: localStorage.getItem('wt_approval_levels')||'3',
+    exportedAt: new Date().toISOString()
+  };
+  var json = JSON.stringify(data, null, 2);
+  // 下载文件
+  var blob = new Blob([json], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'rd-worktime-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showSyncMsg('✅ 数据已导出！在另一台设备上点击"导入数据"即可同步', 'success');
+}
+
+function copyDataToClipboard(){
+  var data = {
+    wt_employees: getEmployees(),
+    wt_projects: getProjects(),
+    wt_project_categories: getProjectCategories(),
+    wt_workhour_types: getWorkhourTypes(),
+    wt_workhour_type_names: getWorkhourTypeNames(),
+    wt_worklogs: getWorklogs(),
+    wt_worktime: JSON.parse(localStorage.getItem('wt_worktime')||'{}'),
+    wt_sys_name: localStorage.getItem('wt_sys_name')||'',
+    wt_approval_levels: localStorage.getItem('wt_approval_levels')||'3',
+    exportedAt: new Date().toISOString()
+  };
+  var json = JSON.stringify(data);
+  navigator.clipboard.writeText(json).then(function(){
+    showSyncMsg('✅ 数据已复制到剪贴板！在另一台设备粘贴并导入', 'success');
+  }).catch(function(){
+    // 降级：填到文本框让用户手动复制
+    document.getElementById('importDataArea').value = json;
+    document.getElementById('importDataArea').select();
+    showSyncMsg('📋 数据已填入下方文本框，请 Ctrl+C 复制', 'info');
+  });
+}
+
+function importAllData(overwrite){
+  var raw = document.getElementById('importDataArea').value.trim();
+  if(!raw){ showSyncMsg('❌ 请先粘贴要导入的数据', 'error'); return; }
+  var data;
+  try { data = JSON.parse(raw); } catch(e) { showSyncMsg('❌ JSON格式错误，请检查后重试', 'error'); return; }
+  var imported = 0;
+  var keys = ['wt_employees','wt_projects','wt_project_categories','wt_workhour_types','wt_workhour_type_names','wt_worklogs'];
+  for(var i=0; i<keys.length; i++){
+    var k = keys[i];
+    if(data[k] && Array.isArray(data[k])){
+      if(overwrite){
+        localStorage.setItem(k, JSON.stringify(data[k]));
+        imported += data[k].length;
+      } else {
+        // 合并模式：根据id/code去重
+        var existing = getStore(k);
+        var existingKeys = {};
+        for(var j=0; j<existing.length; j++){
+          var ek = k==='wt_worklogs' ? (existing[j].batchId||existing[j].id) : (existing[j].id||existing[j].code);
+          existingKeys[ek] = j;
+        }
+        var newCount = 0;
+        for(var j=0; j<data[k].length; j++){
+          var nk = k==='wt_worklogs' ? (data[k][j].batchId||data[k][j].id) : (data[k][j].id||data[k][j].code);
+          if(!(nk in existingKeys)){
+            existing.push(data[k][j]);
+            newCount++;
+          }
+        }
+        localStorage.setItem(k, JSON.stringify(existing));
+        imported += newCount;
+      }
+    }
+  }
+  if(data.wt_worktime && !overwrite){
+    var cur = JSON.parse(localStorage.getItem('wt_worktime')||'{}');
+    localStorage.setItem('wt_worktime', JSON.stringify(data.wt_worktime));
+  } else if(data.wt_worktime){
+    localStorage.setItem('wt_worktime', JSON.stringify(data.wt_worktime));
+  }
+  if(data.wt_sys_name && !overwrite){
+    if(!localStorage.getItem('wt_sys_name')) localStorage.setItem('wt_sys_name', data.wt_sys_name);
+  } else if(data.wt_sys_name){
+    localStorage.setItem('wt_sys_name', data.wt_sys_name);
+  }
+  if(data.wt_approval_levels){
+    localStorage.setItem('wt_approval_levels', data.wt_approval_levels);
+  }
+  showSyncMsg('✅ 导入完成！新增 '+imported+' 条记录。正在同步到云端...', 'success');
+  // 导入后推送到Supabase，再刷新
+  pushAllToSupabase();
+  setTimeout(function(){ location.reload(); }, 2000);
+}
+
+function clearAndImport(){ if(confirm('⚠ 此操作将清空当前所有数据并用导入的数据替换，不可恢复。确定继续？')) importAllData(true); }
+
+function showSyncMsg(msg, type){
+  var el = document.getElementById('syncMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.color = type==='success' ? '#2e7d32' : type==='error' ? '#c62828' : '#555';
+  el.style.background = type==='success' ? '#e8f5e9' : type==='error' ? '#ffebee' : '#e3f2fd';
+  el.style.padding = '8px 12px';
+  el.style.borderRadius = '8px';
+}
+
+// ==================== 系统名称设置 ====================
+function getSysName(){
+  return localStorage.getItem('wt_sys_name') || 'AI探矿研发工时管理系统';
+}
+function setSysName(name){
+  localStorage.setItem('wt_sys_name', name);
+  supaSet('wt_sys_name', name);
+  applySysName();
+}
+
+function applySysName(){
+  var name = getSysName();
+  document.title = name;
+  var brandEl = document.getElementById('topbarBrand');
+  if(brandEl) brandEl.textContent = name;
+  var loginTitle = document.getElementById('loginTitle');
+  if(loginTitle) loginTitle.textContent = '🔬 ' + name;
+}
+
+function previewSysName(){
+  var val = document.getElementById('sysNameInput').value.trim();
+  var preview = document.getElementById('sysNamePreview');
+  preview.textContent = val ? '📌 预览：🔬 ' + val : '请输入系统名称';
+}
+
+function saveSysName(){
+  var val = document.getElementById('sysNameInput').value.trim();
+  if(!val){ alert('请输入系统名称！'); return; }
+  setSysName(val);
+  var msg = document.getElementById('sysNameMsg');
+  msg.textContent = '✅ 名称已保存！';
+  msg.style.color = '#11998e';
+  setTimeout(function(){ msg.textContent = ''; }, 2000);
+}
+
+function loadSysNameForm(){
+  document.getElementById('sysNameInput').value = getSysName();
+  previewSysName();
+}
+
+// ==================== 标准工时设置 ====================
+function getWorktimeSettings(){
+  var raw = localStorage.getItem('wt_worktime');
+  if(raw){
+    try{ return JSON.parse(raw); }catch(e){}
+  }
+  return { standardHours: 8, startTime: '09:00', endTime: '18:00' };
+}
+function setWorktimeSettings(settings){
+  localStorage.setItem('wt_worktime', JSON.stringify(settings));
+  supaSet('wt_worktime', settings);
+}
+
+function updateWorktimeLabel(){
+  // 多项目工时表单已动态显示标准时间，此处保留兼容
+  var label = document.getElementById('wlStandardLabel');
+  if(label){
+    var ws = getWorktimeSettings();
+    label.textContent = '标准打卡时间 ' + ws.startTime + '-' + ws.endTime + ' 为 ' + ws.standardHours + ' 小时';
+  }
+}
+
+function previewWorktime(){
+  var sh = parseFloat(document.getElementById('wtStandardHours').value) || 0;
+  var st = document.getElementById('wtStartTime').value || '00:00';
+  var et = document.getElementById('wtEndTime').value || '00:00';
+  var preview = document.getElementById('wtPreview');
+  if(sh > 0 && st && et){
+    preview.textContent = '📌 预览：每日标准 ' + sh.toFixed(1) + ' 小时，打卡区间 ' + st + ' — ' + et + '，超出将触发加班预警';
+  } else {
+    preview.textContent = '请完善上方设置';
+  }
+}
+
+function saveWorktimeSettings(){
+  var sh = parseFloat(document.getElementById('wtStandardHours').value);
+  var st = document.getElementById('wtStartTime').value;
+  var et = document.getElementById('wtEndTime').value;
+  if(!sh || sh <= 0){ alert('请输入有效的每日标准工时！'); return; }
+  if(!st || !et){ alert('请设置上班和下班时间！'); return; }
+  if(st >= et){ alert('下班时间必须晚于上班时间！'); return; }
+  setWorktimeSettings({ standardHours: sh, startTime: st, endTime: et });
+  var msg = document.getElementById('wtSaveMsg');
+  msg.textContent = '✅ 设置已保存！';
+  msg.style.color = '#11998e';
+  updateWorktimeLabel();
+  setTimeout(function(){ msg.textContent = ''; }, 2000);
+}
+
+function loadWorktimeForm(){
+  var ws = getWorktimeSettings();
+  document.getElementById('wtStandardHours').value = ws.standardHours;
+  document.getElementById('wtStartTime').value = ws.startTime;
+  document.getElementById('wtEndTime').value = ws.endTime;
+  previewWorktime();
+}
+
+// ==================== 审批流程设置 ====================
+function getApprovalLevelCount(){
+  var raw = localStorage.getItem('wt_approval_levels');
+  if(raw){
+    var v = parseInt(raw);
+    if(v >= 1 && v <= 3) return v;
+  }
+  return 3; // 默认3级审批
+}
+function setApprovalLevelCount(n){
+  localStorage.setItem('wt_approval_levels', String(n));
+  supaSet('wt_approval_levels', n);
+}
+
+function previewApprovalLevels(){
+  var n = parseInt(document.getElementById('approvalLevelCount').value);
+  var names = ['项目负责人','人事','总经理'];
+  var flow = [];
+  for(var i=0; i<n; i++){
+    flow.push('第'+['一','二','三'][i]+'级('+names[i]+')');
+  }
+  document.getElementById('approvalLevelPreview').textContent = '📌 审批流程：申请人提交 → ' + flow.join(' → ') + ' → 完成审批';
+}
+
+function saveApprovalLevels(){
+  var n = parseInt(document.getElementById('approvalLevelCount').value);
+  setApprovalLevelCount(n);
+  var msg = document.getElementById('approvalLevelSaveMsg');
+  msg.textContent = '✅ 审批层级设置已保存！';
+  msg.style.color = '#11998e';
+  setTimeout(function(){ msg.textContent = ''; }, 2500);
+}
+
+function loadApprovalLevelForm(){
+  document.getElementById('approvalLevelCount').value = getApprovalLevelCount();
+  previewApprovalLevels();
+}
+
+// 员工表单：切换审批层级选择器显示
+function toggleApprovalLevel(){
+  var role = document.getElementById('empRole').value;
+  var group = document.getElementById('approvalLevelGroup');
+  if(group) group.style.display = role === 'approver' ? 'block' : 'none';
+}
+
+// ==================== 多级审批辅助函数 ====================
+function isWorklogPending(w){
+  return w.status==='待审批' || w.status==='待一级审批' || w.status==='待二级审批' || w.status==='待三级审批';
+}
+function isWorklogApproved(w){ return w.status==='已审批'; }
+function isWorklogRejected(w){ return w.status==='已驳回'; }
+
+function getWorklogLevel(w){
+  if(w.currentLevel) return w.currentLevel;
+  if(w.status==='待审批' || w.status==='待一级审批') return 1;
+  if(w.status==='待二级审批') return 2;
+  if(w.status==='待三级审批') return 3;
+  return 0;
+}
+
+function getWorklogStatusText(w){
+  if(w.status==='已审批') return '已审批';
+  if(w.status==='已驳回') return '已驳回';
+  if(w.status==='待审批' || w.status==='待一级审批') return '待一级审批';
+  if(w.status==='待二级审批') return '待二级审批';
+  if(w.status==='待三级审批') return '待三级审批';
+  return '待一级审批';
+}
+
+function statusBadgeHtml(w){
+  if(w.status==='已审批') return '<span class="badge badge-success">已审批</span>';
+  if(w.status==='已驳回') return '<span class="badge" style="background:#fff0f0;color:#eb3349">已驳回</span>';
+  var st = getWorklogStatusText(w);
+  return '<span class="badge badge-warning">'+st+'</span>';
+}
+
+function approvalProgressHtml(w){
+  var maxLevels = getApprovalLevelCount();
+  if(w.status==='已审批') return '<span class="ap-step done">✓ 全部通过</span>';
+  if(w.status==='已驳回') return '<span class="ap-step rejected">已驳回</span>';
+  var currentLevel = getWorklogLevel(w);
+  var levelNames = ['一','二','三'];
+  var levelDescs = ['项目负责人','人事','总经理'];
+  var html = '';
+  for(var i=1; i<=maxLevels; i++){
+    if(i < currentLevel){
+      html += '<span class="ap-step done">✓'+levelNames[i-1]+'级</span>';
+    } else if(i === currentLevel){
+      html += '<span class="ap-step current">'+levelNames[i-1]+'级待审</span>';
+    } else {
+      html += '<span class="ap-step pending">'+levelNames[i-1]+'级</span>';
+    }
+    if(i < maxLevels) html += '<span class="ap-arrow">→</span>';
+  }
+  return '<div class="approval-progress">'+html+'</div>';
+}
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('wlDate').value = new Date().toISOString().split('T')[0];
+  var now = new Date();
+  document.getElementById('exportMonth').value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('exportMonth').addEventListener('change', refreshExportPreview);
+
+  // 从 Supabase 拉取云端数据
+  supaLoadAll().then(function(hasData){
+    applySysName();
+    if(!hasData && getEmployees().length===0) loadDemoData();
+    // 第一次加载demo数据后，写入Supabase
+    if(!hasData) pushAllToSupabase();
+    updateSyncUI();
+    // 启动轮询（实时检测其他设备变更）
+    startSyncPolling();
+  });
+});
+
+function loadDemoData(){
+  setStore('wt_employees',[
+    {id:'EMP001',name:'张伟',department:'AI算法部',position:'高级算法工程师',password:'123456',role:'approver',approvalLevel:1},
+    {id:'EMP002',name:'李娜',department:'软件开发部',position:'全栈开发工程师',password:'123456',role:'employee',approvalLevel:0},
+    {id:'EMP003',name:'王强',department:'数据工程部',position:'数据工程师',password:'123456',role:'employee',approvalLevel:0},
+    {id:'EMP004',name:'赵敏',department:'人事部',position:'人事经理',password:'123456',role:'approver',approvalLevel:2},
+    {id:'EMP005',name:'陈明',department:'管理层',position:'总经理',password:'123456',role:'approver',approvalLevel:3}
+  ]);
+  setStore('wt_projects',[
+    {code:'RD2026-001',name:'AI探矿算法优化平台',start:'2026-01-01',end:'2026-12-31',desc:'基于深度学习的矿物识别算法研究与平台开发'},
+    {code:'RD2026-002',name:'地质数据智能处理系统',start:'2026-03-01',end:'2026-09-30',desc:'地质勘探数据的智能采集、清洗与标注系统'},
+    {code:'RD2026-003',name:'探矿软件集成平台',start:'2026-04-01',end:'2026-10-31',desc:'各探矿模块的系统集成与性能优化'}
+  ]);
+  setStore('wt_worklogs',[
+    {id:1,empId:'EMP001',empName:'张伟',projCode:'RD2026-001',projName:'AI探矿算法优化平台',date:'2026-06-01',normalHours:8,overtimeHours:0,hours:8,isOvertime:false,content:'完成深度学习模型架构设计与核心代码编写',status:'已审批',currentLevel:0,approvalHistory:[{level:1,approver:'张伟',action:'approve',time:'2026-06-01 18:00'},{level:2,approver:'赵敏',action:'approve',time:'2026-06-02 09:00'},{level:3,approver:'陈明',action:'approve',time:'2026-06-02 14:00'}]},
+    {id:2,empId:'EMP001',empName:'张伟',projCode:'RD2026-001',projName:'AI探矿算法优化平台',date:'2026-06-02',normalHours:8,overtimeHours:2,hours:10,isOvertime:true,content:'优化CNN模型参数，提高矿物识别准确率至93%（含加班2h）',status:'已审批',currentLevel:0,approvalHistory:[{level:1,approver:'张伟',action:'approve',time:'2026-06-02 20:00'},{level:2,approver:'赵敏',action:'approve',time:'2026-06-03 09:00'},{level:3,approver:'陈明',action:'approve',time:'2026-06-03 14:00'}]},
+    {id:3,empId:'EMP002',empName:'李娜',projCode:'RD2026-001',projName:'AI探矿算法优化平台',date:'2026-06-01',normalHours:8,overtimeHours:0,hours:8,isOvertime:false,content:'开发前端交互界面和数据可视化组件',status:'已审批',currentLevel:0,approvalHistory:[]},
+    {id:4,empId:'EMP003',empName:'王强',projCode:'RD2026-002',projName:'地质数据智能处理系统',date:'2026-06-01',normalHours:8,overtimeHours:0,hours:8,isOvertime:false,content:'地质数据采集接口开发与数据清洗流程优化',status:'待一级审批',currentLevel:1,approvalHistory:[]},
+    {id:5,empId:'EMP002',empName:'李娜',projCode:'RD2026-002',projName:'地质数据智能处理系统',date:'2026-06-02',normalHours:8,overtimeHours:0,hours:7,isOvertime:false,content:'数据可视化图表组件开发',status:'待二级审批',currentLevel:2,approvalHistory:[{level:1,approver:'张伟',action:'approve',time:'2026-06-02 18:00'}]}
+  ]);
+}
+
+// ==================== 登录 ====================
+function selectRole(role, el){
+  selectedRole = role;
+  document.querySelectorAll('.role-option').forEach(function(o){ o.classList.remove('selected') });
+  el.classList.add('selected');
+  document.getElementById('roleSelect').style.display = 'none';
+  if(role==='manager'){
+    document.getElementById('loginSubtitle').textContent = '请输入管理员密码';
+    document.getElementById('mgrLoginForm').style.display = 'block';
+    document.getElementById('loginAdminPassword').focus();
+  } else {
+    document.getElementById('loginSubtitle').textContent = '请输入姓名和密码';
+    document.getElementById('staffLoginForm').style.display = 'block';
+    document.getElementById('loginName').focus();
+  }
+}
+
+function showRoleSelect(){
+  selectedRole = null;
+  document.querySelectorAll('.role-option').forEach(function(o){ o.classList.remove('selected') });
+  document.getElementById('roleSelect').style.display = 'flex';
+  document.getElementById('staffLoginForm').style.display = 'none';
+  document.getElementById('mgrLoginForm').style.display = 'none';
+  document.getElementById('loginSubtitle').textContent = '请选择身份登录';
+  ['loginName','loginPassword','loginAdminPassword'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value='';
+  });
+  ['loginError','loginErrorMgr'].forEach(function(id){
+    var el = document.getElementById(id); if(el){ el.style.display='none'; el.textContent=''; }
+  });
+}
+
+function showLoginError(msg, isMgr){
+  var el = document.getElementById(isMgr?'loginErrorMgr':'loginError');
+  if(el){ el.textContent = msg; el.style.display = 'block'; }
+}
+
+function doLogin(){
+  if(!selectedRole) return;
+  if(selectedRole==='manager'){
+    var pwd = document.getElementById('loginAdminPassword').value;
+    if(!pwd){ showLoginError('请输入管理员密码','mgr'); return; }
+    if(pwd !== getAdminPassword()){ showLoginError('密码错误！','mgr'); return; }
+    currentUser = { id:'admin', name:'管理员', role:'admin' };
+    enterSystem();
+  } else {
+    var name = document.getElementById('loginName').value.trim();
+    var pwd = document.getElementById('loginPassword').value;
+    if(!name){ showLoginError('请输入姓名'); return; }
+    if(!pwd){ showLoginError('请输入密码'); return; }
+    var employees = getEmployees();
+    var emp = employees.find(function(e){ return e.name===name });
+    if(!emp){ showLoginError('姓名不存在，请检查是否输入正确'); return; }
+    if(emp.password !== pwd){ showLoginError('密码错误'); return; }
+    currentUser = { id:emp.id, name:emp.name, role:emp.role, approvalLevel:emp.approvalLevel||0 };
+    enterSystem();
+  }
+}
+
+function enterSystem(){
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appMain').style.display = 'block';
+  document.getElementById('displayName').textContent = currentUser.name;
+
+  var roleText = '员工';
+  if(currentUser.role==='admin') roleText = '管理员';
+  else if(currentUser.role==='approver') roleText = '审批人';
+  else if(currentUser.role==='viewer') roleText = '查看者';
+  document.getElementById('displayRole').textContent = roleText;
+
+  document.getElementById('changePwdCard').style.display = (currentUser.role==='employee'||currentUser.role==='approver'||currentUser.role==='viewer')?'block':'none';
+  document.getElementById('sysNameCard').style.display = currentUser.role==='admin'?'block':'none';
+  document.getElementById('worktimeCard').style.display = currentUser.role==='admin'?'block':'none';
+  document.getElementById('approvalLevelCard').style.display = currentUser.role==='admin'?'block':'none';
+  document.getElementById('adminPwdCard').style.display = currentUser.role==='admin'?'block':'none';
+  if(currentUser.role==='admin'){ loadSysNameForm(); loadWorktimeForm(); loadApprovalLevelForm(); }
+  applySysName();
+
+  buildNav();
+  updateSyncUI();
+  // 员工/审批人默认进工时填报页，管理员进首页，查看者进首页
+  var defaultTab = (currentUser.role==='admin'||currentUser.role==='viewer')?'dashboard':'worklog';
+  switchTab(defaultTab, null);
+}
+
+function doLogout(){
+  currentUser = null;
+  selectedRole = null;
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('appMain').style.display = 'none';
+  document.querySelectorAll('.role-option').forEach(function(o){ o.classList.remove('selected') });
+  showRoleSelect();
+}
+
+// ==================== 导航 ====================
+document.getElementById('navMenu').addEventListener('click', function(e){
+  var btn = e.target.closest('.nav-link');
+  if(!btn) return;
+  var tabName = btn.getAttribute('data-tab');
+  if(tabName) switchTab(tabName, btn);
+});
+
+function buildNav(){
+  var nav = document.getElementById('navMenu');
+  if(currentUser.role==='admin'){
+    nav.innerHTML =
+      '<button class="nav-link active" data-tab="dashboard">📊 首页</button>' +
+      '<button class="nav-link" data-tab="allworklogs">📜 全部工时</button>' +
+      '<button class="nav-link" data-tab="employees">👥 员工管理</button>' +
+      '<button class="nav-link" data-tab="projects">📋 项目管理</button>' +
+      '<button class="nav-link" data-tab="export">📥 月度导出</button>';
+  } else if(currentUser.role==='approver'){
+    nav.innerHTML =
+      '<button class="nav-link active" data-tab="dashboard">📊 首页</button>' +
+      '<button class="nav-link" data-tab="worklog">⏱ 工时填报</button>' +
+      '<button class="nav-link" data-tab="pending">📋 待审批</button>';
+  } else if(currentUser.role==='viewer'){
+    nav.innerHTML =
+      '<button class="nav-link active" data-tab="dashboard">📊 首页</button>' +
+      '<button class="nav-link" data-tab="allworklogs">📜 查看工时</button>' +
+      '<button class="nav-link" data-tab="projects">📋 查看项目</button>';
+  } else {
+    nav.innerHTML =
+      '<button class="nav-link active" data-tab="dashboard">📊 首页</button>' +
+      '<button class="nav-link" data-tab="worklog">⏱ 工时填报</button>';
+  }
+}
+
+function switchTab(tabName, el){
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active') });
+  var target = document.getElementById('tab-'+tabName);
+  if(target) target.classList.add('active');
+  if(!el) el = document.querySelector('.nav-link[data-tab="'+tabName+'"]');
+  if(el){
+    document.querySelectorAll('.nav-link').forEach(function(l){ l.classList.remove('active') });
+    el.classList.add('active');
+  }
+  if(tabName==='dashboard') renderDashboard();
+  if(tabName==='worklog'){ populateWorklogForm(); renderMyWorklogs(); }
+  if(tabName==='pending') renderPendingWorklogs();
+  if(tabName==='allworklogs') renderAllWorklogs();
+  if(tabName==='employees') renderEmployeeList();
+  if(tabName==='projects'){ renderCategoryList(); renderWorkhourTypeList(); renderWorkhourTypeNameList(); renderProjectList(); }
+  if(tabName==='export') refreshExportPreview();
+}
+
+// ==================== Dashboard ====================
+function renderDashboard(){
+  var employees = getEmployees();
+  var projects = getProjects();
+  var allWorklogs = getWorklogs();
+  var approvedWorklogs = allWorklogs.filter(function(w){ return isWorklogApproved(w) });
+  var myLogs = allWorklogs.filter(function(w){ return w.empId===currentUser.id });
+  var myApprovedHours = myLogs.filter(function(w){ return isWorklogApproved(w) }).reduce(function(s,w){ return s+w.hours },0);
+  var totalApprovedHours = approvedWorklogs.reduce(function(s,w){ return s+w.hours },0);
+  var pendingCount = allWorklogs.filter(function(w){ return isWorklogPending(w) }).length;
+  var html = '';
+
+  if(currentUser.role==='admin'){
+    html =
+      '<div class="stat-card clickable" onclick="switchTab(\'employees\')"><div class="stat-icon blue">👥</div><div class="stat-info"><h3>'+employees.length+'</h3><p>员工总数</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'projects\')"><div class="stat-icon green">📋</div><div class="stat-info"><h3>'+projects.length+'</h3><p>研发项目数</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'allworklogs\')"><div class="stat-icon orange">⏱</div><div class="stat-info"><h3>'+totalApprovedHours.toFixed(1)+'h</h3><p>已审批总工时</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'pending\')"><div class="stat-icon cyan">📝</div><div class="stat-info"><h3>'+pendingCount+'</h3><p>待审批记录</p></div></div>';
+  } else if(currentUser.role==='viewer'){
+    html =
+      '<div class="stat-card"><div class="stat-icon blue">👤</div><div class="stat-info"><h3>'+currentUser.name+'</h3><p>查看者</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'allworklogs\')"><div class="stat-icon orange">⏱</div><div class="stat-info"><h3>'+totalApprovedHours.toFixed(1)+'h</h3><p>团队已审批总工时</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'projects\')"><div class="stat-icon green">📋</div><div class="stat-info"><h3>'+projects.length+'</h3><p>研发项目数</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'employees\')"><div class="stat-icon purple">👥</div><div class="stat-info"><h3>'+employees.length+'</h3><p>团队人数</p></div></div>';
+  } else if(currentUser.role==='approver'){
+    html =
+      '<div class="stat-card"><div class="stat-icon blue">👤</div><div class="stat-info"><h3>'+currentUser.name+'</h3><p>审批人</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'worklog\')"><div class="stat-icon orange">⏱</div><div class="stat-info"><h3>'+myApprovedHours.toFixed(1)+'h</h3><p>我的已审批工时</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'pending\')"><div class="stat-icon purple">📝</div><div class="stat-info"><h3>'+pendingCount+'</h3><p>待审批记录</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'projects\')"><div class="stat-icon cyan">📋</div><div class="stat-info"><h3>'+projects.length+'</h3><p>进行中项目</p></div></div>';
+  } else {
+    html =
+      '<div class="stat-card"><div class="stat-icon blue">👤</div><div class="stat-info"><h3>'+currentUser.name+'</h3><p>员工</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'worklog\')"><div class="stat-icon orange">⏱</div><div class="stat-info"><h3>'+myApprovedHours.toFixed(1)+'h</h3><p>我的已审批工时</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'worklog\')"><div class="stat-icon green">📝</div><div class="stat-info"><h3>'+myLogs.length+'</h3><p>我的工时记录</p></div></div>' +
+      '<div class="stat-card clickable" onclick="switchTab(\'projects\')"><div class="stat-icon cyan">📋</div><div class="stat-info"><h3>'+projects.length+'</h3><p>进行中项目</p></div></div>';
+  }
+  document.getElementById('dashboardStats').innerHTML = html;
+}
+
+// ==================== 工时填报 ====================
+// ==================== 多项目工时填报 ====================
+var ENTRY_COUNTER = 0;
+
+function _entryCategoriesHTML(selected){
+  var categories = getProjectCategories();
+  return '<option value="">选择项目大类</option>' +
+    categories.map(function(c){ return '<option value="'+escHtml(c.name)+'"'+(c.name===selected?' selected':'')+'>'+escHtml(c.code)+' - '+escHtml(c.name)+'</option>' }).join('');
+}
+
+function _entryProjectsHTML(selected){
+  var projects = getProjects();
+  return '<option value="">选择项目</option>' +
+    projects.map(function(p){ return '<option value="'+p.code+'"'+(p.code===selected?' selected':'')+'>'+p.code+' - '+escHtml(p.name)+'</option>' }).join('');
+}
+
+function _entryWorkhourTypesHTML(selected){
+  var types = getWorkhourTypes();
+  return '<option value="">选择工时类型</option>' +
+    types.map(function(t){ return '<option value="'+escHtml(t.name)+'"'+(t.name===selected?' selected':'')+'>'+escHtml(t.code)+' - '+escHtml(t.name)+'</option>' }).join('');
+}
+
+function _entryWorkhourTypeNamesHTML(selected){
+  var names = getWorkhourTypeNames();
+  return '<option value="">选择类型名称</option>' +
+    names.map(function(n){ return '<option value="'+escHtml(n.name)+'"'+(n.name===selected?' selected':'')+'>'+escHtml(n.code)+' - '+escHtml(n.name)+'</option>' }).join('');
+}
+
+function filterEntryProjectsByCategory(selectElem){
+  // 大类和项目为独立维护，项目下拉框不随大类过滤，仅保留大类选择用于工时记录
+  calcWorklogTotal();
+}
+
+function createEntryHTML(idx, data){
+  var ws = getWorktimeSettings();
+  var normalHours = (data && data.normalHours) ? data.normalHours : ws.standardHours;
+  var otChecked = data && data.isOvertime ? ' checked' : '';
+  var otHours = data && data.overtimeHours ? data.overtimeHours : '';
+  var content = data && data.content ? data.content : '';
+  var projCode = data && data.projCode ? data.projCode : '';
+  var category = data && data.category ? data.category : '';
+  var workhourType = data && data.workhourType ? data.workhourType : '';
+  var workhourTypeName = data && data.workhourTypeName ? data.workhourTypeName : '';
+  // 如果已有项目编码但没有大类，自动从项目中补齐
+  if(!category && projCode){
+    var proj = getProjects().find(function(p){ return p.code===projCode });
+    if(proj && proj.category) category = proj.category;
+  }
+
+  return '<div class="wl-entry" data-idx="'+idx+'">' +
+    '<div class="entry-header">' +
+      '<span class="entry-num">📌 项目 #'+(idx+1)+'</span>' +
+      '<button type="button" class="entry-remove" onclick="removeWorklogEntry('+idx+')" title="移除此项目">×</button>' +
+    '</div>' +
+    '<div class="form-grid">' +
+      '<div class="form-group"><label>项目大类 *</label><select class="wl-entry-cat" data-idx="'+idx+'" required onchange="calcWorklogTotal()">'+_entryCategoriesHTML(category)+'</select></div>' +
+      '<div class="form-group"><label>项目 *</label><select class="wl-entry-proj" data-idx="'+idx+'" required onchange="calcWorklogTotal()">'+_entryProjectsHTML(projCode)+'</select></div>' +
+      '<div class="form-group"><label>工时类型 *</label><select class="wl-entry-wht" data-idx="'+idx+'" required onchange="calcWorklogTotal()">'+_entryWorkhourTypesHTML(workhourType)+'</select></div>' +
+      '<div class="form-group"><label>工时类型名称 *</label><select class="wl-entry-whtn" data-idx="'+idx+'" required onchange="calcWorklogTotal()">'+_entryWorkhourTypeNamesHTML(workhourTypeName)+'</select></div>' +
+      '<div class="form-group"><label>正常工时(h) *</label><input type="number" class="wl-entry-hours" data-idx="'+idx+'" step="0.5" min="0.5" max="24" value="'+normalHours+'" required oninput="calcWorklogTotal()" style="font-size:15px;font-weight:600"></div>' +
+    '</div>' +
+    '<div class="form-group" style="margin-top:10px;margin-bottom:4px">' +
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#b8860b">' +
+        '<input type="checkbox" class="wl-entry-ot-check" data-idx="'+idx+'" onchange="toggleEntryOvertime('+idx+')"'+otChecked+'> 是否包含加班' +
+      '</label>' +
+    '</div>' +
+    '<div class="wl-entry-ot'+(otChecked?' show':'')+'" id="wlEntryOT_'+idx+'">' +
+      '<div class="entry-ot-row">' +
+        '<div class="form-group" style="margin:0;flex:1;min-width:140px"><label>加班工时(h) *</label><input type="number" class="wl-entry-ot-hours" data-idx="'+idx+'" step="0.5" min="0.5" max="16" value="'+otHours+'" oninput="calcWorklogTotal()" style="font-size:15px;font-weight:600"></div>' +
+        '<span class="ot-total normal" id="otBadge_'+idx+'">小计：'+normalHours+'h</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="form-group" style="margin-top:10px"><label>工作内容 *</label><textarea class="wl-entry-content" data-idx="'+idx+'" rows="2" required placeholder="该项目今日研发工作内容...">'+content+'</textarea></div>' +
+  '</div>';
+}
+
+function addWorklogEntry(data){
+  var idx = ENTRY_COUNTER++;
+  var container = document.getElementById('worklogEntries');
+  var div = document.createElement('div');
+  div.innerHTML = createEntryHTML(idx, data);
+  container.appendChild(div.firstElementChild);
+  calcWorklogTotal();
+  return idx;
+}
+
+function removeWorklogEntry(idx){
+  var entries = document.getElementById('worklogEntries');
+  var entry = entries.querySelector('.wl-entry[data-idx="'+idx+'"]');
+  if(entry) entry.remove();
+  // 如果没条目了，自动加一个空条目
+  if(entries.querySelectorAll('.wl-entry').length === 0){
+    addWorklogEntry();
+  }
+  calcWorklogTotal();
+}
+
+function toggleEntryOvertime(idx){
+  var otSection = document.getElementById('wlEntryOT_'+idx);
+  var checkbox = document.querySelector('.wl-entry-ot-check[data-idx="'+idx+'"]');
+  if(checkbox && checkbox.checked){
+    otSection.classList.add('show');
+  } else {
+    otSection.classList.remove('show');
+    var otInput = document.querySelector('.wl-entry-ot-hours[data-idx="'+idx+'"]');
+    if(otInput) otInput.value = '';
+  }
+  calcWorklogTotal();
+}
+
+function calcWorklogTotal(){
+  var entries = document.querySelectorAll('#worklogEntries .wl-entry');
+  var totalNormal = 0, totalOT = 0;
+  var ws = getWorktimeSettings();
+  var STANDARD = ws.standardHours;
+  var timeRange = ws.startTime + '-' + ws.endTime;
+  
+  entries.forEach(function(entry){
+    var idx = entry.getAttribute('data-idx');
+    var nh = parseFloat(entry.querySelector('.wl-entry-hours')?.value) || 0;
+    var isOT = entry.querySelector('.wl-entry-ot-check')?.checked;
+    var oh = isOT ? (parseFloat(entry.querySelector('.wl-entry-ot-hours')?.value) || 0) : 0;
+    totalNormal += nh;
+    totalOT += oh;
+    // 更新每个条目的 ottal badge
+    var badge = document.getElementById('otBadge_'+idx);
+    if(badge){
+      var subTotal = nh + oh;
+      badge.textContent = '小计：'+subTotal.toFixed(1)+'h';
+      badge.className = subTotal > STANDARD ? 'ot-total warn' : 'ot-total normal';
+    }
+  });
+
+  var totalAll = totalNormal + totalOT;
+  var totalBar = document.getElementById('wlTotalBar');
+  var totalValue = document.getElementById('wlTotalValue');
+  var totalWarning = document.getElementById('wlTotalWarning');
+  var submitCount = document.getElementById('wlSubmitCount');
+  
+  totalValue.textContent = totalAll.toFixed(1) + 'h';
+  submitCount.textContent = entries.length;
+  
+  if(totalAll > STANDARD){
+    totalBar.className = 'wl-total-bar warn';
+    totalWarning.style.display = 'flex';
+    totalWarning.textContent = '⚠️ 今日总工时 ' + totalAll.toFixed(1) + 'h 超出标准打卡时间（' + timeRange + '，标准 ' + STANDARD.toFixed(1) + 'h），请确认加班时段！';
+  } else {
+    totalBar.className = 'wl-total-bar';
+    totalWarning.style.display = 'none';
+  }
+}
+
+function populateWorklogForm(){
+  document.getElementById('worklogEntries').innerHTML = '';
+  ENTRY_COUNTER = 0;
+  document.getElementById('wlDate').value = new Date().toISOString().split('T')[0];
+  addWorklogEntry();
+  calcWorklogTotal();
+}
+
+// ==================== 保留工具函数（兼容其他模块） ====================
+function getOvertimeInfo(wlHours, wlOvertimeHours){
+  var isOvertime = wlOvertimeHours > 0;
+  var totalHours = wlHours + wlOvertimeHours;
+  var ws = getWorktimeSettings();
+  return {
+    normalHours: wlHours || 0,
+    overtimeHours: wlOvertimeHours || 0,
+    totalHours: totalHours,
+    isOvertime: isOvertime,
+    exceedsStandard: totalHours > ws.standardHours
+  };
+}
+
+function otBadgeHtml(hours, normalHours, overtimeHours){
+  if(!overtimeHours || overtimeHours <= 0) return hours + 'h';
+  return hours + 'h <span class="ot-badge ot" title="加班 '+overtimeHours+'h">加'+overtimeHours+'h</span>';
+}
+
+function handleAddWorklog(e){
+  e.preventDefault();
+  var date = document.getElementById('wlDate').value;
+  var entries = document.querySelectorAll('#worklogEntries .wl-entry');
+  var ws = getWorktimeSettings();
+  var STANDARD = ws.standardHours;
+
+  if(entries.length === 0){ alert('请至少添加一个项目！'); return; }
+
+  var worklogs = getWorklogs();
+  var totalAllHours = 0;
+  var newRecords = [];
+  var batchId = Date.now(); // 同次提交共享 batchId
+
+  for(var i=0; i<entries.length; i++){
+    var entry = entries[i];
+    var category = entry.querySelector('.wl-entry-cat').value;
+    var projCode = entry.querySelector('.wl-entry-proj').value;
+    var workhourType = entry.querySelector('.wl-entry-wht').value;
+    var workhourTypeName = entry.querySelector('.wl-entry-whtn').value;
+    var normalHours = parseFloat(entry.querySelector('.wl-entry-hours').value) || 0;
+    var isOT = entry.querySelector('.wl-entry-ot-check').checked;
+    var overtimeHours = isOT ? (parseFloat(entry.querySelector('.wl-entry-ot-hours').value) || 0) : 0;
+    var content = entry.querySelector('.wl-entry-content').value.trim();
+
+    if(!category){ alert('项目 #'+(i+1)+' 请选择项目大类！'); return; }
+    if(!projCode){ alert('项目 #'+(i+1)+' 请选择项目！'); return; }
+    if(!workhourType){ alert('项目 #'+(i+1)+' 请选择工时类型！'); return; }
+    if(!workhourTypeName){ alert('项目 #'+(i+1)+' 请选择工时类型名称！'); return; }
+    if(!content){ alert('项目 #'+(i+1)+' 请填写工作内容！'); return; }
+    if(normalHours <= 0){ alert('项目 #'+(i+1)+' 请填写正常工时！'); return; }
+
+    var proj = getProjects().find(function(p){ return p.code===projCode });
+    // 如果没选手工大类，但项目本身有大类，则自动补齐
+    if(!category && proj && proj.category) category = proj.category;
+    var totalHours = normalHours + overtimeHours;
+    if(totalHours > 24){ alert('项目 #'+(i+1)+' 单项目总工时不能超过24小时！'); return; }
+    totalAllHours += totalHours;
+
+    newRecords.push({
+      id: Date.now() + i,
+      batchId: batchId,
+      empId: currentUser.id,
+      empName: currentUser.name,
+      projCode: projCode,
+      projName: proj ? proj.name : '',
+      category: category,
+      workhourType: workhourType,
+      workhourTypeName: workhourTypeName,
+      date: date,
+      normalHours: normalHours,
+      overtimeHours: overtimeHours,
+      hours: totalHours,
+      isOvertime: isOT,
+      content: content,
+      status: '待一级审批',
+      currentLevel: 1,
+      approvalHistory: []
+    });
+  }
+
+  if(totalAllHours > STANDARD){
+    if(!confirm('⚠️ 今日总工时 ' + totalAllHours.toFixed(1) + 'h 超出标准打卡时间（' + ws.startTime + '-' + ws.endTime + '，标准 ' + STANDARD.toFixed(1) + 'h）。\n\n确定要提交吗？')) return;
+  }
+
+  worklogs = worklogs.concat(newRecords);
+  setStore('wt_worklogs', worklogs);
+
+  // 清空表单，保留日期
+  document.getElementById('worklogEntries').innerHTML = '';
+  ENTRY_COUNTER = 0;
+  document.getElementById('wlDate').value = new Date().toISOString().split('T')[0];
+  addWorklogEntry();
+  calcWorklogTotal();
+  renderDashboard();
+  renderMyWorklogs();
+  alert('✅ 成功提交 ' + newRecords.length + ' 条工时记录！已进入一级审批流程。');
+}
+
+function renderMyWorklogs(){
+  var worklogs = getWorklogs().filter(function(w){ return w.empId===currentUser.id }).sort(function(a,b){ return b.id-a.id });
+  var month = new Date().toISOString().slice(0,7);
+  var monthHours = worklogs.filter(function(w){ return w.date.indexOf(month)===0 && isWorklogApproved(w) }).reduce(function(s,w){ return s+w.hours },0);
+  document.getElementById('myWorklogSubtitle').textContent = currentUser.name + ' · 本月已审批工时：' + monthHours.toFixed(1) + 'h';
+  if(worklogs.length===0){
+    document.getElementById('myWorklogList').innerHTML = '<tr class="empty-row"><td colspan="7">暂无工时记录，快去填报吧</td></tr>';
+    return;
+  }
+  document.getElementById('myWorklogList').innerHTML = worklogs.map(function(w){
+    var statusBadge = statusBadgeHtml(w);
+    var hoursHtml = otBadgeHtml(w.hours, w.normalHours||0, w.overtimeHours||0);
+    var catHtml = w.category ? '<span style="background:#eef0ff;color:#667eea;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600">'+escHtml(w.category)+'</span>' : '<span style="color:#ccc">-</span>';
+    var actionHtml = '';
+    if(isWorklogRejected(w)){
+      actionHtml = '<button class="btn btn-warning btn-sm" data-edit-wl="'+w.id+'" style="margin-right:4px">✏️ 编辑</button><button class="btn btn-danger btn-sm" data-del-wl="'+w.id+'">🗑 删除</button>';
+    }else{
+      actionHtml = '<span style="color:#888;font-size:12px">-</span>';
+    }
+    return '<tr><td>'+escHtml(w.date)+'</td><td>'+catHtml+'</td><td>'+escHtml(w.projCode)+' '+escHtml(w.projName)+'</td><td>'+hoursHtml+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escHtml(w.content)+'">'+escHtml(w.content)+'</td><td>'+statusBadge+'</td><td>'+actionHtml+'</td></tr>';
+  }).join('');
+}
+
+// ==================== 我的工时记录操作事件委托 ====================
+document.getElementById('myWorklogList').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if(!btn) return;
+  var id = btn.getAttribute('data-edit-wl');
+  if(id){ editMyWorklog(parseInt(id)); return; }
+  id = btn.getAttribute('data-del-wl');
+  if(id){ deleteMyWorklog(parseInt(id)); return; }
+});
+
+// ==================== 编辑被驳回工时记录 ====================
+function editMyWorklog(id){
+  var worklogs = getWorklogs();
+  var wl = worklogs.find(function(w){ return w.id===id });
+  if(!wl) return;
+
+  var catOptions = '<option value="">选择项目大类</option>' + getProjectCategories().map(function(c){
+    return '<option value="'+escHtml(c.name)+'"'+(c.name===wl.category?' selected':'')+'>'+escHtml(c.name)+'</option>';
+  }).join('');
+
+  var projOptions = '<option value="">选择项目</option>' + getProjects().filter(function(p){ return p.name }).map(function(p){
+    return '<option value="'+escHtml(p.code)+'"'+(p.code===wl.projCode?' selected':'')+'>'+escHtml(p.code)+' '+escHtml(p.name)+'</option>';
+  }).join('');
+
+  var whtOptions = '<option value="">选择工时类型</option>' + getWorkhourTypes().map(function(t){
+    return '<option value="'+escHtml(t.name)+'"'+(t.name===wl.workhourType?' selected':'')+'>'+escHtml(t.name)+'</option>';
+  }).join('');
+
+  var whtnOptions = '<option value="">选择工时类型名称</option>' + getWorkhourTypeNames().map(function(n){
+    return '<option value="'+escHtml(n.name)+'"'+(n.name===wl.workhourTypeName?' selected':'')+'>'+escHtml(n.name)+'</option>';
+  }).join('');
+
+  openEditModal(
+    '📝 编辑工时记录',
+    '修改后将自动重新提交为「待审批」状态',
+    '<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px">' +
+      '<div class="form-group" style="margin-bottom:0"><label>日期 *</label><input type="date" id="editWlDate" value="'+escHtml(wl.date)+'"></div>' +
+      '<div class="form-group" style="margin-bottom:0"><label>项目大类 *</label><select id="editWlCat" required>'+catOptions+'</select></div>' +
+    '</div>' +
+    '<div class="form-group" style="margin-bottom:12px"><label>项目 *</label><select id="editWlProj" required>'+projOptions+'</select></div>' +
+    '<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px">' +
+      '<div class="form-group" style="margin-bottom:0"><label>工时类型 *</label><select id="editWlWht" required>'+whtOptions+'</select></div>' +
+      '<div class="form-group" style="margin-bottom:0"><label>工时类型名称 *</label><select id="editWlWhtn" required>'+whtnOptions+'</select></div>' +
+    '</div>' +
+    '<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px">' +
+      '<div class="form-group" style="margin-bottom:0"><label>正常工时(h) *</label><input type="number" step="0.5" min="0" max="24" id="editWlNh" value="'+(wl.normalHours||0)+'"></div>' +
+      '<div class="form-group" style="margin-bottom:0"><label>加班工时(h)</label><input type="number" step="0.5" min="0" max="24" id="editWlOh" value="'+(wl.overtimeHours||0)+'"></div>' +
+    '</div>' +
+    '<div class="form-group" style="margin-bottom:8px"><label>工作内容 *</label><textarea id="editWlContent" rows="2">'+escHtml(wl.content||'')+'</textarea></div>',
+    async function(){
+      var newDate = document.getElementById('editWlDate').value;
+      var newCat = document.getElementById('editWlCat').value;
+      var newProjCode = document.getElementById('editWlProj').value;
+      var newWht = document.getElementById('editWlWht').value;
+      var newWhtn = document.getElementById('editWlWhtn').value;
+      var newNh = parseFloat(document.getElementById('editWlNh').value) || 0;
+      var newOh = parseFloat(document.getElementById('editWlOh').value) || 0;
+      var newContent = document.getElementById('editWlContent').value.trim();
+
+      if(!newDate){ alert('请选择日期！'); return; }
+      if(!newCat){ alert('请选择项目大类！'); return; }
+      if(!newProjCode){ alert('请选择项目！'); return; }
+      if(!newWht){ alert('请选择工时类型！'); return; }
+      if(!newWhtn){ alert('请选择工时类型名称！'); return; }
+      if(newNh <= 0 && newOh <= 0){ alert('请填写工时！（正常工时 + 加班工时至少一项大于 0）'); return; }
+      if(!newContent){ alert('请填写工作内容！'); return; }
+      if((newNh + newOh) > 24){ alert('单项目总工时不能超过 24 小时！'); return; }
+
+      var proj = getProjects().find(function(p){ return p.code===newProjCode });
+      wl.date = newDate;
+      wl.category = newCat;
+      wl.projCode = newProjCode;
+      wl.projName = proj ? proj.name : '';
+      wl.workhourType = newWht;
+      wl.workhourTypeName = newWhtn;
+      wl.normalHours = newNh;
+      wl.overtimeHours = newOh;
+      wl.hours = newNh + newOh;
+      wl.isOvertime = newOh > 0;
+      wl.content = newContent;
+      wl.status = '待一级审批'; // 重新提交审批
+      wl.currentLevel = 1;
+      wl.approvalHistory = [];
+
+      try {
+        await setStore('wt_worklogs', worklogs);
+        closeEditModal();
+        renderMyWorklogs();
+        renderDashboard();
+        renderPendingWorklogs();
+        renderAllWorklogs();
+        alert('✅ 工时记录已修改并重新提交审批！');
+      } catch(e) {
+        alert('❌ 同步失败：' + e.message + '\\n本地已保存，请检查网络后刷新页面。');
+      }
+    }
+  );
+}
+
+// ==================== 删除被驳回工时记录 ====================
+function deleteMyWorklog(id){
+  if(!confirm('确定要删除该条工时记录吗？此操作不可恢复。')) return;
+  var worklogs = getWorklogs();
+  var idx = worklogs.findIndex(function(w){ return w.id===id });
+  if(idx >= 0){
+    worklogs.splice(idx, 1);
+    setStore('wt_worklogs', worklogs);
+    renderMyWorklogs();
+    renderDashboard();
+    renderPendingWorklogs();
+    renderAllWorklogs();
+    alert('🗑 工时记录已删除');
+  }
+}
+
+// ==================== 批处理分组 ====================
+// 按 batchId 分组，无 batchId 的旧数据按 empId+date 自动编组
+function groupByBatch(worklogs){
+  var groups = [];
+  var seen = {};
+  worklogs.forEach(function(w){
+    var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+    if(!seen[key]){
+      seen[key] = { key: key, batchId: w.batchId||null, empId: w.empId, empName: w.empName, date: w.date, items: [], totalHours: 0 };
+      groups.push(seen[key]);
+    }
+    seen[key].items.push(w);
+    seen[key].totalHours += w.hours;
+  });
+  return groups;
+}
+
+function toggleBatchRow(batchRef){
+  // 如果点击的是按钮（审批/驳回/删除），不触发展开
+  if(event && event.target && event.target.closest('button')) return;
+  var row = document.getElementById('batchDetail_'+batchRef);
+  if(row){
+    row.classList.toggle('show');
+  }
+}
+
+// ==================== 待审批事件委托 ====================
+document.getElementById('pendingWorklogList').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if(!btn) return;
+  var batchRef = btn.getAttribute('data-batch');
+  if(!batchRef) return;
+  if(btn.classList.contains('btn-approve')) approveBatch(batchRef);
+  if(btn.classList.contains('btn-reject')) rejectBatch(batchRef);
+});
+
+async function approveBatch(batchRef){
+  var worklogs = getWorklogs();
+  var maxLevels = getApprovalLevelCount();
+  var approverLevel = currentUser.role==='admin' ? 0 : (currentUser.approvalLevel||0);
+  var updated = false;
+  var unauthorized = false;
+  var levelNames = ['一','二','三'];
+  
+  // 先检查权限
+  worklogs.forEach(function(w){
+    var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+    if(key===batchRef && isWorklogPending(w)){
+      var currentLevel = getWorklogLevel(w);
+      if(currentUser.role!=='admin' && approverLevel!==currentLevel){
+        unauthorized = true;
+      }
+    }
+  });
+  if(unauthorized){
+    alert('⚠️ 您无权审批当前层级的工时！\n该批次工时不在您的审批层级范围内。');
+    return;
+  }
+  if(!confirm('确定通过该批次所有工时记录？')) return;
+  
+  worklogs.forEach(function(w){
+    var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+    if(key===batchRef && isWorklogPending(w)){
+      var currentLevel = getWorklogLevel(w);
+      // 记录审批历史
+      if(!w.approvalHistory) w.approvalHistory = [];
+      w.approvalHistory.push({
+        level: currentLevel,
+        approver: currentUser.name,
+        action: 'approve',
+        time: new Date().toLocaleString('zh-CN')
+      });
+      if(currentLevel >= maxLevels){
+        // 最终审批通过
+        w.status = '已审批';
+        w.currentLevel = 0;
+      } else {
+        // 流转到下一级
+        w.currentLevel = currentLevel + 1;
+        w.status = '待' + levelNames[currentLevel] + '级审批';
+      }
+      updated = true;
+    }
+  });
+  if(updated){
+    try {
+      await setStore('wt_worklogs',worklogs);
+      alert('✅ 审批操作已完成并同步成功');
+    } catch(e){
+      alert('❌ 同步失败：' + e.message + '\\n本地已保存，请检查网络后手动同步。');
+    }
+    renderPendingWorklogs(); renderDashboard(); renderAllWorklogs();
+  }
+}
+
+async function rejectBatch(batchRef){
+  // 先检查权限
+  var worklogs0 = getWorklogs();
+  var approverLevel = currentUser.role==='admin' ? 0 : (currentUser.approvalLevel||0);
+  var unauthorized = false;
+  worklogs0.forEach(function(w){
+    var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+    if(key===batchRef && isWorklogPending(w)){
+      var currentLevel = getWorklogLevel(w);
+      if(currentUser.role!=='admin' && approverLevel!==currentLevel){
+        unauthorized = true;
+      }
+    }
+  });
+  if(unauthorized){
+    alert('⚠️ 您无权审批当前层级的工时！\n该批次工时不在您的审批层级范围内。');
+    return;
+  }
+  if(!confirm('确定驳回该批次所有工时记录？')) return;
+  var worklogs = getWorklogs();
+  var updated = false;
+  worklogs.forEach(function(w){
+    var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+    if(key===batchRef && isWorklogPending(w)){
+      var currentLevel = getWorklogLevel(w);
+      if(!w.approvalHistory) w.approvalHistory = [];
+      w.approvalHistory.push({
+        level: currentLevel,
+        approver: currentUser.name,
+        action: 'reject',
+        time: new Date().toLocaleString('zh-CN')
+      });
+      w.status='已驳回';
+      w.currentLevel = 0;
+      updated=true;
+    }
+  });
+  if(updated){
+    try {
+      await setStore('wt_worklogs',worklogs);
+      alert('✅ 已驳回并同步成功');
+    } catch(e){
+      alert('❌ 同步失败：' + e.message + '\\n本地已保存，请检查网络后手动同步。');
+    }
+    renderPendingWorklogs(); renderDashboard(); renderAllWorklogs();
+  }
+}
+
+function renderWorklogStats(containerId, worklogs){
+  var container = document.getElementById(containerId);
+  if(!container) return;
+  if(worklogs.length===0){
+    container.innerHTML = '';
+    return;
+  }
+  var totalHours = worklogs.reduce(function(s,w){ return s+w.hours },0);
+  var totalNormal = worklogs.reduce(function(s,w){ return s+(w.normalHours||0) },0);
+  var totalOT = worklogs.reduce(function(s,w){ return s+(w.overtimeHours||0) },0);
+
+  // 按项目大类汇总
+  var catMap = {};
+  worklogs.forEach(function(w){
+    var key = w.category || '未分类';
+    if(!catMap[key]) catMap[key] = {name:key, hours:0, count:0};
+    catMap[key].hours += w.hours;
+    catMap[key].count += 1;
+  });
+  var catRows = Object.values(catMap).sort(function(a,b){ return b.hours-a.hours });
+
+  // 按项目汇总
+  var projMap = {};
+  worklogs.forEach(function(w){
+    var key = w.projCode || '未知项目';
+    if(!projMap[key]) projMap[key] = {code:key, name:w.projName||key, hours:0, count:0};
+    projMap[key].hours += w.hours;
+    projMap[key].count += 1;
+  });
+  var projRows = Object.values(projMap).sort(function(a,b){ return b.hours-a.hours });
+
+  var catTable = catRows.length===0 ? '<div class="stats-empty">暂无数据</div>' :
+    '<table><thead><tr><th>项目大类</th><th>记录数</th><th>工时</th></tr></thead><tbody>' +
+    catRows.map(function(r){ return '<tr><td>'+escHtml(r.name)+'</td><td>'+r.count+'</td><td>'+r.hours.toFixed(1)+'h</td></tr>' }).join('') +
+    '</tbody></table>';
+
+  var projTable = projRows.length===0 ? '<div class="stats-empty">暂无数据</div>' :
+    '<table><thead><tr><th>项目</th><th>记录数</th><th>工时</th></tr></thead><tbody>' +
+    projRows.map(function(r){ return '<tr><td>'+escHtml(r.code)+' '+escHtml(r.name)+'</td><td>'+r.count+'</td><td>'+r.hours.toFixed(1)+'h</td></tr>' }).join('') +
+    '</tbody></table>';
+
+  container.innerHTML =
+    '<div class="stats-panel">' +
+      '<h3>📊 工时统计</h3>' +
+      '<div class="stats-grid">' +
+        '<div class="stat-card"><div class="stat-value total">'+worklogs.length+'</div><div class="stat-label">记录数</div></div>' +
+        '<div class="stat-card"><div class="stat-value total">'+totalHours.toFixed(1)+'h</div><div class="stat-label">总工时</div></div>' +
+        '<div class="stat-card"><div class="stat-value">'+totalNormal.toFixed(1)+'h</div><div class="stat-label">正常工时</div></div>' +
+        '<div class="stat-card"><div class="stat-value ot">'+totalOT.toFixed(1)+'h</div><div class="stat-label">加班工时</div></div>' +
+      '</div>' +
+      '<div class="stats-tables">' +
+        '<div class="stats-table"><h4>按项目大类统计</h4>'+catTable+'</div>' +
+        '<div class="stats-table"><h4>按项目统计</h4>'+projTable+'</div>' +
+      '</div>' +
+    '</div>';
+}
+
+// 漏填多填分析：当选择员工+月份时显示
+function renderApprovedFillAnalysis(empId, month, allApprovedLogs){
+  var container = document.getElementById('approvedFillAnalysis');
+  if(!container) return;
+  if(!empId || !month){
+    container.innerHTML = '';
+    return;
+  }
+  var logs = allApprovedLogs.filter(function(w){ return w.empId===empId && w.date.indexOf(month)===0 });
+  var ws = getWorktimeSettings();
+  var standardHoursPerDay = ws.standardHours || 8;
+
+  // 计算该月所有工作日（周一到周五）
+  var year = parseInt(month.slice(0,4));
+  var mon = parseInt(month.slice(5,7))-1;
+  var daysInMonth = new Date(year, mon+1, 0).getDate();
+  var workdays = [];
+  for(var d=1; d<=daysInMonth; d++){
+    var dt = new Date(year, mon, d);
+    var dow = dt.getDay();
+    if(dow>=1 && dow<=5){
+      // 仅展示当月及之前的日期，避免显示未来日期
+      var today = new Date(); today.setHours(0,0,0,0);
+      if(dt <= today) workdays.push(year+'-'+String(mon+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
+    }
+  }
+  var totalWorkdays = workdays.length;
+
+  // 统计已填报日期（去重）
+  var filledDates = {};
+  logs.forEach(function(w){ filledDates[w.date] = true });
+  var filledDays = Object.keys(filledDates).length;
+  var missingDates = workdays.filter(function(d){ return !filledDates[d] });
+  var missingDays = missingDates.length;
+
+  // 总工时
+  var totalHours = logs.reduce(function(s,w){ return s+w.hours },0);
+  var totalNormal = logs.reduce(function(s,w){ return s+(w.normalHours||0) },0);
+  var totalOT = logs.reduce(function(s,w){ return s+(w.overtimeHours||0) },0);
+
+  // 应有工时
+  var expectedHours = totalWorkdays * standardHoursPerDay;
+  var diff = totalNormal - expectedHours; // 基于正常工时比较（加班不算入）
+  var diffClass = diff < -0.01 ? 'danger' : (diff > 0.01 ? 'warning' : 'success');
+  var diffText = '';
+  if(diff < -0.01) diffText = '少填 ' + Math.abs(diff).toFixed(1) + 'h';
+  else if(diff > 0.01) diffText = '多填 ' + diff.toFixed(1) + 'h';
+  else diffText = '工时平衡 ✓';
+
+  // 漏填日期详情
+  var missingHtml = '';
+  if(missingDays > 0){
+    var missList = missingDates.slice(0, 20).map(function(d){
+      var dt = new Date(d+'T00:00:00');
+      var wn = ['日','一','二','三','四','五','六'][dt.getDay()];
+      return '<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 10px;background:#fff0f0;color:#eb3349;border-radius:6px;font-size:13px;font-weight:600">'+d.slice(5)+' (周'+wn+')</span>';
+    }).join('');
+    var moreCount = missingDates.length - 20;
+    var moreHtml = moreCount > 0 ? '<span style="color:#888;font-size:13px">...还有 '+moreCount+' 天</span>' : '';
+    missingHtml = '<div style="margin-top:12px;padding:12px 16px;background:#fff5f5;border-radius:10px;border-left:4px solid #eb3349"><div style="font-weight:600;color:#eb3349;margin-bottom:8px">⚠️ 漏填日期（'+missingDays+'天）</div><div>'+missList+moreHtml+'</div></div>';
+  }
+
+  // 多填/少填提示
+  var extraHtml = '';
+  if(diff < -0.01){
+    extraHtml = '<div style="margin-top:12px;padding:12px 16px;background:#fff5f5;border-radius:10px;border-left:4px solid #eb3349"><div style="font-weight:600;color:#eb3349">🚨 工时异常：正常工时少填 '+Math.abs(diff).toFixed(1)+'h（应填 '+expectedHours.toFixed(1)+'h，实填 '+totalNormal.toFixed(1)+'h）</div><div style="color:#666;font-size:13px;margin-top:4px">已扣除加班 '+totalOT.toFixed(1)+'h 后仍差 '+(expectedHours-totalNormal).toFixed(1)+'h</div></div>';
+  } else if(diff > 0.01){
+    extraHtml = '<div style="margin-top:12px;padding:12px 16px;background:#fff8e1;border-radius:10px;border-left:4px solid #f5a623"><div style="font-weight:600;color:#f5a623">⚡ 多填 '+diff.toFixed(1)+'h（应填 '+expectedHours.toFixed(1)+'h，实填 '+totalNormal.toFixed(1)+'h）</div></div>';
+  } else {
+    extraHtml = '<div style="margin-top:12px;padding:12px 16px;background:#f0fff4;border-radius:10px;border-left:4px solid #43e97b"><div style="font-weight:600;color:#43e97b">✅ 工时平衡：正常工时 '+totalNormal.toFixed(1)+'h = 应有 '+expectedHours.toFixed(1)+'h（含加班 '+totalOT.toFixed(1)+'h）</div></div>';
+  }
+
+  var html = '<div style="margin:16px 0;padding:18px 20px;background:linear-gradient(135deg,#f5f7ff 0%,#f9f9ff 100%);border-radius:14px;border:1px solid #e8eaff">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">' +
+      '<h3 style="margin:0;font-size:16px;color:#333">🔍 员工填表分析：<span style="color:#667eea">'+escHtml(empId)+'</span> · <span style="color:#667eea">'+month+'</span></h3>' +
+      '<div style="font-size:13px;color:#888">标准工时：'+standardHoursPerDay+'h/天（每周5个工作日）</div>' +
+    '</div>' +
+    '<div class="stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
+      '<div class="stat-card"><div class="stat-value">'+totalWorkdays+'</div><div class="stat-label">当月工作日</div></div>' +
+      '<div class="stat-card"><div class="stat-value" style="color:#43e97b">'+filledDays+'</div><div class="stat-label">已填报天数</div></div>' +
+      '<div class="stat-card"><div class="stat-value" style="color:'+(missingDays>0?'#eb3349':'#43e97b')+'">'+missingDays+'</div><div class="stat-label">漏填天数</div></div>' +
+      '<div class="stat-card"><div class="stat-value '+diffClass+'">'+totalNormal.toFixed(1)+'h</div><div class="stat-label">正常工时</div></div>' +
+      '<div class="stat-card"><div class="stat-value">'+expectedHours.toFixed(1)+'h</div><div class="stat-label">应有工时</div></div>' +
+      '<div class="stat-card"><div class="stat-value '+diffClass+'">'+diffText+'</div><div class="stat-label">工时对比</div></div>' +
+    '</div>' +
+    missingHtml +
+    extraHtml +
+  '</div>';
+  container.innerHTML = html;
+}
+
+function renderPendingWorklogs(){
+  var allWorklogs = getWorklogs();
+  var fc = document.getElementById('filterPendingCategory').value;
+  var fp = document.getElementById('filterPendingProject').value;
+  
+  // 按审批人层级过滤待审批工时
+  var approverLevel = currentUser.approvalLevel||1;
+  var levelNames = ['一','二','三'];
+  var levelDescs = ['项目负责人','人事','总经理'];
+  var levelHint = document.getElementById('pendingLevelHint');
+  if(levelHint){
+    levelHint.textContent = '您当前为' + levelNames[approverLevel-1] + '级审核（' + levelDescs[approverLevel-1] + '），仅显示待您审批的工时记录';
+  }
+  var pendingLogs = allWorklogs.filter(function(w){
+    if(!isWorklogPending(w)) return false;
+    return getWorklogLevel(w) === approverLevel;
+  }).sort(function(a,b){ return b.id-a.id });
+  
+  if(fc) pendingLogs = pendingLogs.filter(function(w){ return w.category===fc });
+  if(fp) pendingLogs = pendingLogs.filter(function(w){ return w.projCode===fp });
+
+  // 刷新筛选下拉选项
+  var categories = getProjectCategories();
+  var projects = getProjects();
+  document.getElementById('filterPendingCategory').innerHTML = '<option value="">全部大类</option>' +
+    categories.map(function(c){ return '<option value="'+escHtml(c.name)+'"'+(c.name===fc?' selected':'')+'>'+escHtml(c.code)+' - '+escHtml(c.name)+'</option>' }).join('');
+  document.getElementById('filterPendingProject').innerHTML = '<option value="">全部项目</option>' +
+    projects.map(function(p){ return '<option value="'+p.code+'"'+(p.code===fp?' selected':'')+'>'+p.code+' '+escHtml(p.name)+'</option>' }).join('');
+
+  // 渲染统计面板
+  renderWorklogStats('pendingWorklogStats', pendingLogs);
+
+  var fac = document.getElementById('filterApprovedCategory').value;
+  var fap = document.getElementById('filterApprovedProject').value;
+  var fae = document.getElementById('filterApprovedEmployee').value;
+  var fam = document.getElementById('filterApprovedMonth').value;
+  var approvedLogs = allWorklogs.filter(function(w){ return isWorklogApproved(w) }).sort(function(a,b){ return b.id-a.id });
+  if(fac) approvedLogs = approvedLogs.filter(function(w){ return w.category===fac });
+  if(fap) approvedLogs = approvedLogs.filter(function(w){ return w.projCode===fap });
+  if(fae) approvedLogs = approvedLogs.filter(function(w){ return w.empId===fae });
+  if(fam) approvedLogs = approvedLogs.filter(function(w){ return w.date.indexOf(fam)===0 });
+  var approvedLogsTop = approvedLogs.slice(0,50);
+
+  // 刷新已审批筛选下拉选项
+  // 员工列表：从已审批工时中提取有数据的员工
+  var empMap = {};
+  allWorklogs.filter(function(w){ return isWorklogApproved(w) }).forEach(function(w){
+    if(w.empId && !empMap[w.empId]) empMap[w.empId] = w.empName;
+  });
+  document.getElementById('filterApprovedEmployee').innerHTML = '<option value="">全部员工</option>' +
+    Object.keys(empMap).sort().map(function(empId){
+      var name = empMap[empId] || '';
+      return '<option value="'+escHtml(empId)+'"'+(empId===fae?' selected':'')+'>'+escHtml(empId)+(name?' - '+escHtml(name):'')+'</option>';
+    }).join('');
+  // 月份列表：从已审批工时中提取有数据的月份
+  var monthSet = {};
+  allWorklogs.filter(function(w){ return isWorklogApproved(w) }).forEach(function(w){
+    if(w.date && w.date.length>=7) monthSet[w.date.slice(0,7)] = true;
+  });
+  document.getElementById('filterApprovedMonth').innerHTML = '<option value="">全部月份</option>' +
+    Object.keys(monthSet).sort(function(a,b){ return b.localeCompare(a) }).map(function(m){
+      return '<option value="'+m+'"'+(m===fam?' selected':'')+'>'+m+'</option>';
+    }).join('');
+
+  document.getElementById('filterApprovedCategory').innerHTML = '<option value="">全部大类</option>' +
+    categories.map(function(c){ return '<option value="'+escHtml(c.name)+'"'+(c.name===fac?' selected':'')+'>'+escHtml(c.code)+' - '+escHtml(c.name)+'</option>' }).join('');
+  document.getElementById('filterApprovedProject').innerHTML = '<option value="">全部项目</option>' +
+    projects.map(function(p){ return '<option value="'+p.code+'"'+(p.code===fap?' selected':'')+'>'+p.code+' '+escHtml(p.name)+'</option>' }).join('');
+
+  // 渲染已审批漏填多填分析（仅当选择了员工+月份时显示）
+  renderApprovedFillAnalysis(fae, fam, allWorklogs.filter(function(w){ return isWorklogApproved(w) }));
+
+  // 渲染已审批统计面板
+  renderWorklogStats('approvedWorklogStats', approvedLogs);
+
+  // === 待审批：按批次分组 ===
+  var levelText = ['一','二','三'][approverLevel-1] || '一';
+  if(pendingLogs.length===0){
+    document.getElementById('pendingWorklogList').innerHTML = '<tr class="empty-row"><td colspan="6">✅ 暂无待您审批的记录（'+levelText+'级审核）</td></tr>';
+  } else {
+    var groups = groupByBatch(pendingLogs);
+    var rows = '';
+    groups.forEach(function(g, gi){
+      var itemCount = g.items.length;
+      var hasOT = g.items.some(function(w){ return w.overtimeHours > 0 });
+      var totalNormal = g.items.reduce(function(s,w){ return s+(w.normalHours||0) },0);
+      var totalOT = g.items.reduce(function(s,w){ return s+(w.overtimeHours||0) },0);
+      var hoursHtml = otBadgeHtml(g.totalHours, totalNormal, totalOT);
+      var otBadge = hasOT ? ' <span class="ot-badge ot">含加班</span>' : '';
+      var countBadge = itemCount>1 ? '<span class="project-count">'+itemCount+'个项目</span>' : '';
+      var batchRef = g.batchId ? 'B'+g.batchId : ('D'+g.empId+'_'+g.date);
+      var progressHtml = approvalProgressHtml(g.items[0]);
+      rows += '<tr class="batch-row" onclick="toggleBatchRow(\''+batchRef+'\')" data-batch="'+batchRef+'">' +
+        '<td>'+escHtml(g.date)+'</td>' +
+        '<td>'+escHtml(g.empName)+otBadge+'</td>' +
+        '<td>'+hoursHtml+countBadge+'</td>' +
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escHtml(g.items.map(function(w){return w.content}).join(' | '))+'">'+escHtml(g.items[0].content||'')+(itemCount>1?' ...':'')+'</td>' +
+        '<td>'+progressHtml+'</td>' +
+        '<td><button class="btn btn-success btn-sm btn-approve" data-batch="'+batchRef+'">✅ 通过</button> <button class="btn btn-danger btn-sm btn-reject" data-batch="'+batchRef+'">❌ 驳回</button></td>' +
+        '</tr>';
+      // 展开明细行
+      rows += '<tr class="batch-detail-row" id="batchDetail_'+batchRef+'"><td colspan="6"><table class="batch-detail-table">' +
+        g.items.map(function(w){
+          var subHours = otBadgeHtml(w.hours, w.normalHours||0, w.overtimeHours||0);
+          var catText = w.category ? '<span style="background:#eef0ff;color:#667eea;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600">'+escHtml(w.category)+'</span>' : '<span style="color:#ccc">-</span>';
+          return '<tr><td style="width:90px">'+escHtml(w.projCode)+'</td><td style="width:100px">'+catText+'</td><td>'+escHtml(w.projName)+'</td><td style="text-align:right;font-weight:600">'+subHours+'</td><td style="color:#666">'+escHtml(w.content)+'</td></tr>';
+        }).join('') +
+        '</table></td></tr>';
+    });
+    document.getElementById('pendingWorklogList').innerHTML = rows;
+  }
+
+  // === 已审批：按批次分组 ===
+  if(approvedLogsTop.length===0){
+    document.getElementById('approvedWorklogList').innerHTML = '<tr class="empty-row"><td colspan="5">暂无已审批记录</td></tr>';
+  } else {
+    var appGroups = groupByBatch(approvedLogsTop);
+    var arows = '';
+    appGroups.forEach(function(g){
+      var itemCount = g.items.length;
+      var countBadge = itemCount>1 ? '<span class="project-count">'+itemCount+'个项目</span>' : '';
+      var totalNormal = g.items.reduce(function(s,w){ return s+(w.normalHours||0) },0);
+      var totalOT = g.items.reduce(function(s,w){ return s+(w.overtimeHours||0) },0);
+      var hoursHtml = otBadgeHtml(g.totalHours, totalNormal, totalOT);
+      var batchRef = g.batchId ? 'B'+g.batchId : ('D'+g.empId+'_'+g.date);
+      arows += '<tr class="batch-row" onclick="toggleBatchRow(\''+batchRef+'\')" data-batch="'+batchRef+'">' +
+        '<td>'+escHtml(g.date)+'</td><td>'+escHtml(g.empName)+'</td><td>'+hoursHtml+countBadge+'</td>' +
+        '<td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escHtml(g.items.map(function(w){return w.content}).join(' | '))+'">'+escHtml(g.items[0].content||'')+(itemCount>1?' ...':'')+'</td>' +
+        '<td><span class="badge badge-success">已审批</span></td></tr>';
+      arows += '<tr class="batch-detail-row" id="batchDetail_'+batchRef+'"><td colspan="5"><table class="batch-detail-table">' +
+        g.items.map(function(w){
+          var subHours = otBadgeHtml(w.hours, w.normalHours||0, w.overtimeHours||0);
+          return '<tr><td style="width:90px">'+escHtml(w.projCode)+'</td><td>'+escHtml(w.projName)+'</td><td style="text-align:right;font-weight:600">'+subHours+'</td><td style="color:#666">'+escHtml(w.content)+'</td></tr>';
+        }).join('') + '</table></td></tr>';
+    });
+    document.getElementById('approvedWorklogList').innerHTML = arows;
+  }
+}
+
+// ==================== 全部工时（管理员） ====================
+document.getElementById('allWorklogList').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if(!btn) return;
+  var batchRef = btn.getAttribute('data-batch');
+  if(!batchRef) return;
+  if(btn.classList.contains('btn-approve')) approveBatch(batchRef);
+  if(btn.classList.contains('btn-delete')) deleteBatch(batchRef);
+});
+
+function renderAllWorklogs(){
+  var worklogs = getWorklogs().sort(function(a,b){ return b.id-a.id });
+  var fc = document.getElementById('filterCategory').value;
+  var fp = document.getElementById('filterProject').value;
+  var fs = document.getElementById('filterStatus').value;
+  var fe = document.getElementById('filterEmployee').value;
+  if(fc) worklogs = worklogs.filter(function(w){ return w.category===fc });
+  if(fp) worklogs = worklogs.filter(function(w){ return w.projCode===fp });
+  if(fs) worklogs = worklogs.filter(function(w){
+    if(fs==='待一级审批') return w.status==='待一级审批' || w.status==='待审批';
+    return w.status===fs;
+  });
+  if(fe) worklogs = worklogs.filter(function(w){ return w.empId===fe });
+  var categories = getProjectCategories();
+  var projects = getProjects();
+  var employees = getEmployees();
+  // 恢复筛选值
+  document.getElementById('filterCategory').innerHTML = '<option value="">全部大类</option>' +
+    categories.map(function(c){ return '<option value="'+escHtml(c.name)+'"'+(c.name===fc?' selected':'')+'>'+escHtml(c.code)+' - '+escHtml(c.name)+'</option>' }).join('');
+  document.getElementById('filterProject').innerHTML = '<option value="">全部项目</option>' +
+    projects.map(function(p){ return '<option value="'+p.code+'"'+(p.code===fp?' selected':'')+'>'+p.code+' '+escHtml(p.name)+'</option>' }).join('');
+  document.getElementById('filterEmployee').innerHTML = '<option value="">全部员工</option>' +
+    employees.map(function(e){ return '<option value="'+e.id+'"'+(e.id===fe?' selected':'')+'>'+e.id+' '+e.name+'</option>' }).join('');
+
+  // 渲染统计面板
+  renderWorklogStats('allWorklogStats', worklogs);
+
+  var isViewer = currentUser.role==='viewer';
+
+  if(worklogs.length===0){
+    document.getElementById('allWorklogList').innerHTML = '<tr class="empty-row"><td colspan="'+(isViewer?6:7)+'">暂无工时记录</td></tr>';
+    // 更新表头
+    var thead = document.querySelector('#tab-allworklogs thead tr');
+    if(thead) thead.innerHTML = '<th>日期</th><th>员工</th><th>工时/项目</th><th>工作摘要</th><th>状态</th>' + (isViewer?'':'<th>操作</th>');
+    return;
+  }
+
+  var groups = groupByBatch(worklogs);
+  var rows = '';
+  groups.forEach(function(g){
+    var itemCount = g.items.length;
+    var hasOT = g.items.some(function(w){ return w.overtimeHours > 0 });
+    var totalNormal = g.items.reduce(function(s,w){ return s+(w.normalHours||0) },0);
+    var totalOT = g.items.reduce(function(s,w){ return s+(w.overtimeHours||0) },0);
+    var hoursHtml = otBadgeHtml(g.totalHours, totalNormal, totalOT);
+    var otBadge = hasOT ? ' <span class="ot-badge ot">加班</span>' : '';
+    var countBadge = itemCount>1 ? '<span class="project-count">'+itemCount+'项</span>' : '';
+    var batchRef = g.batchId ? 'B'+g.batchId : ('D'+g.empId+'_'+g.date);
+
+    // 取批次中第一条的状态（同一批次状态应一致）
+    var firstItem = g.items[0];
+    var statusBadge = statusBadgeHtml(firstItem);
+    var progressHtml = isWorklogPending(firstItem) ? approvalProgressHtml(firstItem) : statusBadge;
+
+    var actionHtml = '';
+    if(!isViewer){
+      if(isWorklogPending(firstItem)){
+        actionHtml = '<button class="btn btn-success btn-sm btn-approve" data-batch="'+batchRef+'">✅ 审批</button>';
+      } else {
+        actionHtml = '<span style="color:#888;font-size:12px">✓已处理</span>';
+      }
+      actionHtml += ' <button class="btn-outline btn-delete" data-batch="'+batchRef+'" style="margin-left:4px">🗑</button>';
+    }
+
+    var allContent = g.items.map(function(w){ return w.content }).join(' | ');
+    rows += '<tr class="batch-row" onclick="toggleBatchRow(\''+batchRef+'\')" data-batch="'+batchRef+'">' +
+      '<td>'+escHtml(g.date)+'</td>' +
+      '<td>'+escHtml(g.empName)+otBadge+'</td>' +
+      '<td>'+hoursHtml+countBadge+'</td>' +
+      '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escHtml(allContent)+'">'+escHtml(g.items[0].content||'')+(itemCount>1?' ...':'')+'</td>' +
+      '<td>'+progressHtml+'</td>';
+    if(!isViewer) rows += '<td>'+actionHtml+'</td>';
+    rows += '</tr>';
+
+    // 展开明细
+    var detailCols = isViewer ? 5 : 6;
+    rows += '<tr class="batch-detail-row" id="batchDetail_'+batchRef+'"><td colspan="'+detailCols+'"><table class="batch-detail-table">' +
+      g.items.map(function(w){
+        var subHours = otBadgeHtml(w.hours, w.normalHours||0, w.overtimeHours||0);
+        var catText = w.category ? '<span style="background:#eef0ff;color:#667eea;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600">'+escHtml(w.category)+'</span>' : '<span style="color:#ccc">-</span>';
+        return '<tr><td style="width:90px">'+escHtml(w.projCode)+'</td><td style="width:100px">'+catText+'</td><td>'+escHtml(w.projName)+'</td><td style="text-align:right;font-weight:600">'+subHours+'</td><td style="color:#666">'+escHtml(w.content)+'</td></tr>';
+      }).join('') +
+      '</table></td></tr>';
+  });
+  document.getElementById('allWorklogList').innerHTML = rows;
+  // 更新表头
+  var thead = document.querySelector('#tab-allworklogs thead tr');
+  if(thead){
+    thead.innerHTML = '<th>日期</th><th>员工</th><th>工时/项目</th><th>工作摘要</th><th>状态</th>' + (isViewer?'':'<th>操作</th>');
+  }
+}
+
+function deleteBatch(batchRef){
+  if(!confirm('确定删除该批次所有工时记录？此操作不可恢复！')) return;
+  var worklogs = getWorklogs().filter(function(w){
+    var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+    return key !== batchRef;
+  });
+  setStore('wt_worklogs', worklogs);
+  renderAllWorklogs();
+  renderPendingWorklogs();
+  renderDashboard();
+}
+
+// ==================== 员工管理（管理员） ====================
+document.getElementById('employeeListBody').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if(!btn) return;
+  var empId = btn.getAttribute('data-emp-id');
+  if(!empId) return;
+  if(btn.classList.contains('btn-reset-pwd')) resetEmployeePassword(empId);
+  else if(btn.classList.contains('btn-toggle-role')) toggleEmployeeRole(empId);
+  else deleteEmployee(empId);
+});
+
+function handleAddEmployee(e){
+  e.preventDefault();
+  var employees = getEmployees();
+  var id = document.getElementById('empId').value.trim();
+  if(employees.find(function(emp){ return emp.id===id })){ alert('工号已存在！'); return; }
+  var role = document.getElementById('empRole').value;
+  var approvalLevel = 0;
+  if(role === 'approver'){
+    approvalLevel = parseInt(document.getElementById('empApprovalLevel').value) || 1;
+  }
+  employees.push({
+    id:id,
+    name:document.getElementById('empName').value.trim(),
+    department:document.getElementById('empDept').value.trim(),
+    position:document.getElementById('empPosition').value.trim(),
+    password:'123456',
+    role:role,
+    approvalLevel:approvalLevel
+  });
+  setStore('wt_employees',employees);
+  document.getElementById('employeeForm').reset();
+  toggleApprovalLevel();
+  renderEmployeeList();
+  renderDashboard();
+}
+
+function toggleEmployeeRole(empId){
+  var employees = getEmployees();
+  var idx = employees.findIndex(function(e){ return e.id===empId });
+  if(idx===-1) return;
+  var emp = employees[idx];
+  // 三向循环：employee → approver → viewer → employee
+  if(emp.role==='employee'){
+    emp.role='approver';
+    var lvl = prompt('请设置该审批人的审批层级：\n1 = 一级审核（项目负责人）\n2 = 二级审核（人事）\n3 = 三级审核（总经理）', '1');
+    if(!lvl){ emp.role='employee'; return; }
+    emp.approvalLevel = Math.max(1, Math.min(3, parseInt(lvl)||1));
+  } else if(emp.role==='approver'){
+    emp.role='viewer';
+    emp.approvalLevel = 0;
+  } else {
+    emp.role='employee';
+    emp.approvalLevel = 0;
+  }
+  setStore('wt_employees',employees);
+  renderEmployeeList();
+}
+
+function deleteEmployee(id){
+  if(!confirm('确定删除该员工？相关工时记录也将被删除！')) return;
+  setStore('wt_employees',getEmployees().filter(function(e){ return e.id!==id }));
+  setStore('wt_worklogs',getWorklogs().filter(function(w){ return w.empId!==id }));
+  renderEmployeeList();
+  renderDashboard();
+}
+
+function renderEmployeeList(){
+  var employees = getEmployees();
+  if(employees.length===0){
+    document.getElementById('employeeListBody').innerHTML = '<tr class="empty-row"><td colspan="6">暂无员工数据</td></tr>';
+    return;
+  }
+  document.getElementById('employeeListBody').innerHTML = employees.map(function(e){
+    var roleClass = '', roleLabel = '';
+    if(e.role==='approver'){
+      roleClass='role-toggle approver';
+      var lvl = e.approvalLevel||1;
+      var lvlText = lvl===1?'一级(项目负责人)':lvl===2?'二级(人事)':'三级(总经理)';
+      roleLabel = lvlText+'审批 ✓';
+    }
+    else if(e.role==='viewer'){ roleClass='role-toggle viewer'; roleLabel='查看者 👁️'; }
+    else { roleClass='role-toggle employee'; roleLabel='员工'; }
+    return '<tr>' +
+      '<td>'+escHtml(e.id)+'</td>' +
+      '<td>'+escHtml(e.name)+'</td>' +
+      '<td>'+(e.department||'-')+'</td>' +
+      '<td>'+(e.position||'-')+'</td>' +
+      '<td><button class="'+roleClass+' btn-toggle-role" data-emp-id="'+e.id+'" title="点击切换角色">'+roleLabel+'</button></td>' +
+      '<td>' +
+        '<button class="btn btn-warning btn-sm btn-reset-pwd" data-emp-id="'+e.id+'" style="margin-right:4px">重置密码</button>' +
+        '<button class="btn btn-danger btn-sm" data-emp-id="'+e.id+'">删除</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ==================== 项目大类管理（管理员） ====================
+document.getElementById('categoryListBody').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if(!btn) return;
+  var id = btn.getAttribute('data-cat-id');
+  if(!id) return;
+  if(btn.classList.contains('btn-danger')) deleteCategory(id);
+  else if(btn.classList.contains('btn-outline')) editCategory(id);
+});
+
+// ==================== 工时类型管理（管理员） ====================
+document.getElementById('workhourTypeListBody').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if(!btn) return;
+  var id = btn.getAttribute('data-wht-id');
+  if(!id) return;
+  if(btn.classList.contains('btn-danger')) deleteWorkhourType(id);
+  else if(btn.classList.contains('btn-outline')) editWorkhourType(id);
+});
+
+document.getElementById('workhourTypeNameListBody').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if(!btn) return;
+  var id = btn.getAttribute('data-whtn-id');
+  if(!id) return;
+  if(btn.classList.contains('btn-danger')) deleteWorkhourTypeName(id);
+  else if(btn.classList.contains('btn-outline')) editWorkhourTypeName(id);
+});
+
+function handleAddCategory(e){
+  e.preventDefault();
+  var categories = getProjectCategories();
+  var name = document.getElementById('catName').value.trim();
+  if(!name){ alert('请输入大类名称！'); return; }
+  if(categories.find(function(c){ return c.name===name })){ alert('该大类名称已存在！'); return; }
+  var code = document.getElementById('catCode').value.trim();
+  if(!code){
+    // 自动生成编码 CAT001, CAT002...
+    var maxNum = 0;
+    categories.forEach(function(c){
+      var m = (c.code||'').match(/^CAT(\d+)$/);
+      if(m) maxNum = Math.max(maxNum, parseInt(m[1]));
+    });
+    code = 'CAT' + String(maxNum+1).padStart(3,'0');
+  }
+  if(categories.find(function(c){ return c.code===code })){ alert('该大类编码已存在！'); return; }
+  categories.push({
+    id: Date.now(),
+    code: code,
+    name: name,
+    desc: document.getElementById('catDesc').value.trim()
+  });
+  setStore('wt_project_categories', categories);
+  document.getElementById('categoryForm').reset();
+  renderCategoryList();
+}
+
+function deleteCategory(id){
+  if(!confirm('确定删除该项目大类？已关联此大类的项目将变为"未分类"。')) return;
+  var categories = getProjectCategories();
+  var cat = categories.find(function(c){ return String(c.id)===String(id) });
+  var catName = cat ? cat.name : '';
+  setStore('wt_project_categories', categories.filter(function(c){ return String(c.id)!==String(id) }));
+  // 清除项目中关联的该大类
+  var projects = getProjects();
+  var changed = false;
+  projects.forEach(function(p){
+    if(p.category===catName){ p.category=''; changed=true; }
+  });
+  if(changed) setStore('wt_projects', projects);
+  renderCategoryList();
+  renderProjectList();
+}
+
+function renderCategoryList(){
+  var categories = getProjectCategories();
+  var isAdmin = currentUser && currentUser.role==='admin';
+  var tbody = document.getElementById('categoryListBody');
+  if(!tbody) return;
+  // 大类管理卡片只有管理员可见
+  var catCard = document.getElementById('categoryForm');
+  if(catCard){
+    var card = catCard.closest('.card');
+    if(card) card.style.display = isAdmin ? '' : 'none';
+  }
+  if(categories.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">暂无项目大类，请添加</td></tr>';
+    return;
+  }
+  tbody.innerHTML = categories.map(function(c){
+    return '<tr><td><strong>'+escHtml(c.code)+'</strong></td><td>'+escHtml(c.name)+'</td><td>'+(c.desc?escHtml(c.desc):'-')+'</td>' + (isAdmin?'<td><button class="btn btn-outline btn-sm" data-cat-id="'+c.id+'" style="color:#667eea;border-color:#667eea;margin-right:4px">编辑</button><button class="btn btn-danger btn-sm" data-cat-id="'+c.id+'">删除</button></td>':'') + '</tr>';
+  }).join('');
+}
+
+function renderProjCategoryOptions(){
+  var categories = getProjectCategories();
+  var sel = document.getElementById('projCategory');
+  if(!sel) return;
+  var current = sel.value;
+  sel.innerHTML = '<option value="">选择大类（可选）</option>' +
+    categories.map(function(c){ return '<option value="'+escHtml(c.name)+'"'+(c.name===current?' selected':'')+'>'+escHtml(c.code)+' - '+escHtml(c.name)+'</option>' }).join('');
+}
+
+// ==================== 工时类型 CRUD ====================
+function handleAddWorkhourType(e){
+  e.preventDefault();
+  var types = getWorkhourTypes();
+  var name = document.getElementById('whtName').value.trim();
+  if(!name){ alert('请输入工时类型名称！'); return; }
+  if(types.find(function(t){ return t.name===name })){ alert('该工时类型名称已存在！'); return; }
+  var code = document.getElementById('whtCode').value.trim();
+  if(!code){
+    var maxNum = 0;
+    types.forEach(function(t){
+      var m = (t.code||'').match(/^WT(\d+)$/);
+      if(m) maxNum = Math.max(maxNum, parseInt(m[1]));
+    });
+    code = 'WT' + String(maxNum+1).padStart(3,'0');
+  }
+  if(types.find(function(t){ return t.code===code })){ alert('该工时类型编码已存在！'); return; }
+  types.push({
+    id: Date.now(),
+    code: code,
+    name: name,
+    desc: document.getElementById('whtDesc').value.trim()
+  });
+  setStore('wt_workhour_types', types);
+  document.getElementById('workhourTypeForm').reset();
+  renderWorkhourTypeList();
+}
+
+function deleteWorkhourType(id){
+  if(!confirm('确定删除该工时类型？')) return;
+  setStore('wt_workhour_types', getWorkhourTypes().filter(function(t){ return String(t.id)!==String(id) }));
+  renderWorkhourTypeList();
+}
+
+function renderWorkhourTypeList(){
+  var types = getWorkhourTypes();
+  var isAdmin = currentUser && currentUser.role==='admin';
+  var tbody = document.getElementById('workhourTypeListBody');
+  if(!tbody) return;
+  var form = document.getElementById('workhourTypeForm');
+  if(form){
+    var card = form.closest('.card');
+    if(card) card.style.display = isAdmin ? '' : 'none';
+  }
+  if(types.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">暂无工时类型，请添加</td></tr>';
+    return;
+  }
+  tbody.innerHTML = types.map(function(t){
+    return '<tr><td><strong>'+escHtml(t.code)+'</strong></td><td>'+escHtml(t.name)+'</td><td>'+(t.desc?escHtml(t.desc):'-')+'</td>' + (isAdmin?'<td><button class="btn btn-outline btn-sm" data-wht-id="'+t.id+'" style="color:#667eea;border-color:#667eea;margin-right:4px">编辑</button><button class="btn btn-danger btn-sm" data-wht-id="'+t.id+'">删除</button></td>':'') + '</tr>';
+  }).join('');
+}
+
+// ==================== 工时类型名称 CRUD ====================
+function handleAddWorkhourTypeName(e){
+  e.preventDefault();
+  var names = getWorkhourTypeNames();
+  var name = document.getElementById('whtnName').value.trim();
+  if(!name){ alert('请输入工时类型名称！'); return; }
+  if(names.find(function(n){ return n.name===name })){ alert('该类型名称已存在！'); return; }
+  var code = document.getElementById('whtnCode').value.trim();
+  if(!code){
+    var maxNum = 0;
+    names.forEach(function(n){
+      var m = (n.code||'').match(/^WTN(\d+)$/);
+      if(m) maxNum = Math.max(maxNum, parseInt(m[1]));
+    });
+    code = 'WTN' + String(maxNum+1).padStart(3,'0');
+  }
+  if(names.find(function(n){ return n.code===code })){ alert('该类型编码已存在！'); return; }
+  names.push({
+    id: Date.now(),
+    code: code,
+    name: name,
+    desc: document.getElementById('whtnDesc').value.trim()
+  });
+  setStore('wt_workhour_type_names', names);
+  document.getElementById('workhourTypeNameForm').reset();
+  renderWorkhourTypeNameList();
+}
+
+function deleteWorkhourTypeName(id){
+  if(!confirm('确定删除该工时类型名称？')) return;
+  setStore('wt_workhour_type_names', getWorkhourTypeNames().filter(function(n){ return String(n.id)!==String(id) }));
+  renderWorkhourTypeNameList();
+}
+
+function renderWorkhourTypeNameList(){
+  var names = getWorkhourTypeNames();
+  var isAdmin = currentUser && currentUser.role==='admin';
+  var tbody = document.getElementById('workhourTypeNameListBody');
+  if(!tbody) return;
+  var form = document.getElementById('workhourTypeNameForm');
+  if(form){
+    var card = form.closest('.card');
+    if(card) card.style.display = isAdmin ? '' : 'none';
+  }
+  if(names.length===0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">暂无工时类型名称，请添加</td></tr>';
+    return;
+  }
+  tbody.innerHTML = names.map(function(n){
+    return '<tr><td><strong>'+escHtml(n.code)+'</strong></td><td>'+escHtml(n.name)+'</td><td>'+(n.desc?escHtml(n.desc):'-')+'</td>' + (isAdmin?'<td><button class="btn btn-outline btn-sm" data-whtn-id="'+n.id+'" style="color:#667eea;border-color:#667eea;margin-right:4px">编辑</button><button class="btn btn-danger btn-sm" data-whtn-id="'+n.id+'">删除</button></td>':'') + '</tr>';
+  }).join('');
+}
+
+// ==================== 编辑弹窗通用函数 ====================
+var _editCallback = null;
+
+function openEditModal(title, subtitle, fieldsHtml, saveCallback){
+  document.getElementById('editModalTitle').textContent = title;
+  document.getElementById('editModalSubtitle').textContent = subtitle || '';
+  document.getElementById('editModalFields').innerHTML = fieldsHtml;
+  document.getElementById('editModalMsg').style.display = 'none';
+  _editCallback = saveCallback;
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal(){
+  document.getElementById('editModal').style.display = 'none';
+  _editCallback = null;
+}
+
+document.getElementById('editModalSaveBtn').addEventListener('click', function(){
+  if(_editCallback) _editCallback();
+});
+
+document.getElementById('editModalCancelBtn').addEventListener('click', function(){
+  closeEditModal();
+});
+
+// 点击遮罩层关闭弹窗
+document.getElementById('editModal').addEventListener('click', function(e){
+  if(e.target === document.getElementById('editModal')) closeEditModal();
+});
+
+// 键盘快捷键：Esc关闭，Enter保存
+document.addEventListener('keydown', function(e){
+  if(document.getElementById('editModal').style.display === 'flex'){
+    if(e.key === 'Escape'){ e.preventDefault(); closeEditModal(); }
+    else if(e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey){
+      var active = document.activeElement;
+      // textarea中按Enter不触发保存，input中按Enter触发保存
+      if(active && active.tagName === 'TEXTAREA') return;
+      e.preventDefault();
+      if(_editCallback) _editCallback();
+    }
+  }
+});
+
+// ==================== 编辑-项目大类 ====================
+function editCategory(id){
+  var categories = getProjectCategories();
+  var cat = categories.find(function(c){ return String(c.id)===String(id) });
+  if(!cat) return;
+  openEditModal(
+    '✏️ 编辑项目大类',
+    '修改大类信息',
+    '<div class="form-group"><label>大类名称 *</label><input type="text" id="editCatName" value="'+escHtml(cat.name)+'"></div>' +
+    '<div class="form-group"><label>大类编码</label><input type="text" id="editCatCode" value="'+escHtml(cat.code)+'"></div>' +
+    '<div class="form-group"><label>大类描述</label><textarea id="editCatDesc" rows="2">'+(cat.desc?escHtml(cat.desc):'')+'</textarea></div>',
+    function(){
+      var newName = document.getElementById('editCatName').value.trim();
+      if(!newName){ alert('请输入大类名称！'); return; }
+      // 检查名称是否与其他条目重复
+      var dup = categories.find(function(c){ return c.name===newName && String(c.id)!==String(id) });
+      if(dup){ alert('该大类名称已被使用！'); return; }
+      var newCode = document.getElementById('editCatCode').value.trim();
+      var dupCode = categories.find(function(c){ return c.code===newCode && String(c.id)!==String(id) });
+      if(dupCode){ alert('该大类编码已被使用！'); return; }
+      cat.name = newName;
+      cat.code = newCode;
+      cat.desc = document.getElementById('editCatDesc').value.trim();
+      setStore('wt_project_categories', categories);
+      closeEditModal();
+      renderCategoryList();
+    }
+  );
+}
+
+// ==================== 编辑-工时类型 ====================
+function editWorkhourType(id){
+  var types = getWorkhourTypes();
+  var t = types.find(function(x){ return String(x.id)===String(id) });
+  if(!t) return;
+  openEditModal(
+    '⏱️ 编辑工时类型',
+    '修改工时类型信息',
+    '<div class="form-group"><label>类型名称 *</label><input type="text" id="editWhtName" value="'+escHtml(t.name)+'"></div>' +
+    '<div class="form-group"><label>类型编码</label><input type="text" id="editWhtCode" value="'+escHtml(t.code)+'"></div>' +
+    '<div class="form-group"><label>类型描述</label><textarea id="editWhtDesc" rows="2">'+(t.desc?escHtml(t.desc):'')+'</textarea></div>',
+    function(){
+      var newName = document.getElementById('editWhtName').value.trim();
+      if(!newName){ alert('请输入工时类型名称！'); return; }
+      var dup = types.find(function(x){ return x.name===newName && String(x.id)!==String(id) });
+      if(dup){ alert('该工时类型名称已被使用！'); return; }
+      var newCode = document.getElementById('editWhtCode').value.trim();
+      var dupCode = types.find(function(x){ return x.code===newCode && String(x.id)!==String(id) });
+      if(dupCode){ alert('该工时类型编码已被使用！'); return; }
+      t.name = newName;
+      t.code = newCode;
+      t.desc = document.getElementById('editWhtDesc').value.trim();
+      setStore('wt_workhour_types', types);
+      closeEditModal();
+      renderWorkhourTypeList();
+    }
+  );
+}
+
+// ==================== 编辑-工时类型名称 ====================
+function editWorkhourTypeName(id){
+  var names = getWorkhourTypeNames();
+  var n = names.find(function(x){ return String(x.id)===String(id) });
+  if(!n) return;
+  openEditModal(
+    '📝 编辑工时类型名称',
+    '修改工时类型名称信息',
+    '<div class="form-group"><label>类型名称 *</label><input type="text" id="editWhtnName" value="'+escHtml(n.name)+'"></div>' +
+    '<div class="form-group"><label>类型编码</label><input type="text" id="editWhtnCode" value="'+escHtml(n.code)+'"></div>' +
+    '<div class="form-group"><label>类型描述</label><textarea id="editWhtnDesc" rows="2">'+(n.desc?escHtml(n.desc):'')+'</textarea></div>',
+    function(){
+      var newName = document.getElementById('editWhtnName').value.trim();
+      if(!newName){ alert('请输入类型名称！'); return; }
+      var dup = names.find(function(x){ return x.name===newName && String(x.id)!==String(id) });
+      if(dup){ alert('该类型名称已被使用！'); return; }
+      var newCode = document.getElementById('editWhtnCode').value.trim();
+      var dupCode = names.find(function(x){ return x.code===newCode && String(x.id)!==String(id) });
+      if(dupCode){ alert('该类型编码已被使用！'); return; }
+      n.name = newName;
+      n.code = newCode;
+      n.desc = document.getElementById('editWhtnDesc').value.trim();
+      setStore('wt_workhour_type_names', names);
+      closeEditModal();
+      renderWorkhourTypeNameList();
+    }
+  );
+}
+
+// ==================== 编辑-项目 ====================
+function editProject(code){
+  var projects = getProjects();
+  var p = projects.find(function(x){ return x.code===code });
+  if(!p) return;
+  openEditModal(
+    '➕ 编辑项目',
+    '修改项目信息',
+    '<div class="form-group"><label>项目编号 *</label><input type="text" id="editProjCode" value="'+escHtml(p.code)+'"></div>' +
+    '<div class="form-group"><label>项目名称 *</label><input type="text" id="editProjName" value="'+escHtml(p.name)+'"></div>' +
+    '<div class="form-group"><label>开始日期</label><input type="date" id="editProjStart" value="'+(p.start||'')+'"></div>' +
+    '<div class="form-group"><label>结束日期</label><input type="date" id="editProjEnd" value="'+(p.end||'')+'"></div>' +
+    '<div class="form-group"><label>项目描述</label><textarea id="editProjDesc" rows="2">'+(p.desc?escHtml(p.desc):'')+'</textarea></div>',
+    function(){
+      var newCode = document.getElementById('editProjCode').value.trim();
+      if(!newCode){ alert('请输入项目编号！'); return; }
+      var newName = document.getElementById('editProjName').value.trim();
+      if(!newName){ alert('请输入项目名称！'); return; }
+      // 检查编号是否与其他条目重复
+      var dup = projects.find(function(x){ return x.code===newCode && x.code!==code });
+      if(dup){ alert('该项目编号已被使用！'); return; }
+      // 如果编号改了，需要更新相关工时记录
+      var oldCode = p.code;
+      p.code = newCode;
+      p.name = newName;
+      p.start = document.getElementById('editProjStart').value;
+      p.end = document.getElementById('editProjEnd').value;
+      p.desc = document.getElementById('editProjDesc').value.trim();
+      setStore('wt_projects', projects);
+      // 同步更新工时记录中的项目编号
+      if(oldCode !== newCode){
+        var worklogs = getWorklogs();
+        var changed = false;
+        worklogs.forEach(function(w){
+          if(w.projCode===oldCode){ w.projCode=newCode; changed=true; }
+        });
+        if(changed) setStore('wt_worklogs', worklogs);
+      }
+      closeEditModal();
+      renderProjectList();
+      renderDashboard();
+    }
+  );
+}
+
+// ==================== 项目管理（管理员） ====================
+document.getElementById('projectListBody').addEventListener('click', function(e){
+  var btn = e.target.closest('button');
+  if(!btn) return;
+  var code = btn.getAttribute('data-proj-code');
+  if(!code) return;
+  if(btn.classList.contains('btn-danger')) deleteProject(code);
+  else if(btn.classList.contains('btn-outline')) editProject(code);
+});
+
+function handleAddProject(e){
+  e.preventDefault();
+  var projects = getProjects();
+  var code = document.getElementById('projCode').value.trim();
+  if(projects.find(function(p){ return p.code===code })){ alert('项目编号已存在！'); return; }
+  projects.push({
+    code:code,
+    name:document.getElementById('projName').value.trim(),
+    start:document.getElementById('projStart').value,
+    end:document.getElementById('projEnd').value,
+    desc:document.getElementById('projDesc').value.trim()
+  });
+  setStore('wt_projects',projects);
+  document.getElementById('projectForm').reset();
+  renderProjectList();
+  renderDashboard();
+}
+
+function deleteProject(code){
+  if(!confirm('确定删除该项目？相关工时记录也将被删除！')) return;
+  setStore('wt_projects',getProjects().filter(function(p){ return p.code!==code }));
+  setStore('wt_worklogs',getWorklogs().filter(function(w){ return w.projCode!==code }));
+  renderProjectList();
+  renderDashboard();
+}
+
+function renderProjectList(){
+  var projects = getProjects();
+  var worklogs = getWorklogs().filter(function(w){ return isWorklogApproved(w) });
+  var isViewer = currentUser.role==='viewer';
+  var isApprover = currentUser.role==='approver';
+  var isAdmin = currentUser.role==='admin';
+  var colSpan = isViewer ? 5 : 6;
+
+  // 管理员卡片可见性：大类管理、工时类型管理、工时类型名称管理、添加项目 均仅管理员可见
+  var cards = document.querySelectorAll('#tab-projects > .card');
+  // cards[0]=大类管理, cards[1]=工时类型管理, cards[2]=工时类型名称管理, cards[3]=添加项目, cards[4]=项目列表
+  for(var ci=0; ci<cards.length-1; ci++){
+    cards[ci].style.display = isAdmin ? '' : 'none';
+  }
+
+  if(projects.length===0){
+    document.getElementById('projectListBody').innerHTML = '<tr class="empty-row"><td colspan="'+colSpan+'">暂无项目数据</td></tr>';
+    // 更新表头
+    var thead0 = document.querySelector('#tab-projects thead tr');
+    if(thead0){
+      thead0.innerHTML = '<th>编号</th><th>名称</th><th>开始</th><th>结束</th><th>工时合计</th>' + (isAdmin?'<th>操作</th>':'');
+    }
+    return;
+  }
+  document.getElementById('projectListBody').innerHTML = projects.map(function(p){
+    var hours = worklogs.filter(function(w){ return w.projCode===p.code }).reduce(function(s,w){ return s+w.hours },0);
+    return '<tr><td><strong>'+escHtml(p.code)+'</strong></td><td>'+escHtml(p.name)+'</td><td>'+(p.start||'-')+'</td><td>'+(p.end||'进行中')+'</td><td>'+hours.toFixed(1)+'h</td>' + (isAdmin?'<td><button class="btn btn-outline btn-sm" data-proj-code="'+p.code+'" style="color:#667eea;border-color:#667eea;margin-right:4px">编辑</button><button class="btn btn-danger btn-sm" data-proj-code="'+p.code+'">删除</button></td>':'') + '</tr>';
+  }).join('');
+  // 更新表头
+  var thead = document.querySelector('#tab-projects thead tr');
+  if(thead){
+    thead.innerHTML = '<th>编号</th><th>名称</th><th>开始</th><th>结束</th><th>工时合计</th>' + (isAdmin?'<th>操作</th>':'');
+  }
+}
+
+// ==================== 修改密码 ====================
+function showChangePassword(){
+  document.getElementById('overlayChangePwd').style.display = 'flex';
+  document.getElementById('oldPwd').value = '';
+  document.getElementById('newPwd').value = '';
+  document.getElementById('confirmPwd').value = '';
+  document.getElementById('pwdMsg').style.display = 'none';
+  document.getElementById('oldPwd').focus();
+}
+
+function submitChangePassword(){
+  var oldPwd = document.getElementById('oldPwd').value;
+  var newPwd = document.getElementById('newPwd').value;
+  var confirmPwd = document.getElementById('confirmPwd').value;
+  var msg = document.getElementById('pwdMsg');
+  if(!oldPwd){ showPwdMsg(msg,'请输入原密码','#f5576c'); return; }
+  if(!newPwd || newPwd.length<6){ showPwdMsg(msg,'新密码至少6位','#f5576c'); return; }
+  if(newPwd !== confirmPwd){ showPwdMsg(msg,'两次新密码不一致','#f5576c'); return; }
+  var employees = getEmployees();
+  var idx = employees.findIndex(function(e){ return e.id===currentUser.id });
+  if(idx===-1){ showPwdMsg(msg,'用户不存在','#f5576c'); return; }
+  if(employees[idx].password !== oldPwd){ showPwdMsg(msg,'原密码错误','#f5576c'); return; }
+  employees[idx].password = newPwd;
+  setStore('wt_employees', employees);
+  showPwdMsg(msg,'✅ 密码修改成功！','#11998e');
+  setTimeout(function(){ document.getElementById('overlayChangePwd').style.display='none'; },1500);
+}
+
+function showPwdMsg(el, text, color){
+  el.style.display = 'block';
+  el.style.background = color==='#11998e' ? '#e6f7f0' : '#fff0f0';
+  el.style.color = color;
+  el.textContent = text;
+}
+
+function resetEmployeePassword(empId){
+  var newPwd = prompt('请输入员工 ' + empId + ' 的新密码（至少6位）：', '123456');
+  if(!newPwd) return;
+  if(newPwd.length<6){ alert('密码至少6位！'); return; }
+  var employees = getEmployees();
+  var idx = employees.findIndex(function(e){ return e.id===empId });
+  if(idx===-1){ alert('员工不存在！'); return; }
+  employees[idx].password = newPwd;
+  setStore('wt_employees', employees);
+  alert('✅ 员工 ' + empId + ' 密码已重置为：' + newPwd);
+}
+
+function showAdminChangePwd(){
+  document.getElementById('overlayAdminPwd').style.display = 'flex';
+  document.getElementById('adminOldPwd').value = '';
+  document.getElementById('adminNewPwd').value = '';
+  document.getElementById('adminConfirmPwd').value = '';
+  document.getElementById('adminPwdMsg').style.display = 'none';
+  document.getElementById('adminOldPwd').focus();
+}
+
+function submitAdminChangePwd(){
+  var oldPwd = document.getElementById('adminOldPwd').value;
+  var newPwd = document.getElementById('adminNewPwd').value;
+  var confirmPwd = document.getElementById('adminConfirmPwd').value;
+  var msg = document.getElementById('adminPwdMsg');
+  if(!oldPwd){ showAdminPwdMsg(msg,'请输入原密码','#f5576c'); return; }
+  if(oldPwd !== getAdminPassword()){ showAdminPwdMsg(msg,'原密码错误','#f5576c'); return; }
+  if(!newPwd || newPwd.length<6){ showAdminPwdMsg(msg,'新密码至少6位','#f5576c'); return; }
+  if(newPwd !== confirmPwd){ showAdminPwdMsg(msg,'两次新密码不一致','#f5576c'); return; }
+  setAdminPassword(newPwd);
+  showAdminPwdMsg(msg,'✅ 管理员密码修改成功！','#11998e');
+  setTimeout(function(){ document.getElementById('overlayAdminPwd').style.display='none'; },1500);
+}
+
+function showAdminPwdMsg(el, text, color){
+  el.style.display = 'block';
+  el.style.background = color==='#11998e' ? '#e6f7f0' : '#fff0f0';
+  el.style.color = color;
+  el.textContent = text;
+}
+
+// ==================== 月度导出 ====================
+function refreshExportPreview(){
+  var month = document.getElementById('exportMonth').value;
+  if(!month) return;
+  var worklogs = getWorklogs().filter(function(w){ return isWorklogApproved(w) && w.date.indexOf(month)===0 });
+  document.getElementById('exportPreviewTitle').textContent = month + ' · 已审批工时：' + worklogs.length + ' 条记录';
+  if(worklogs.length===0){
+    document.getElementById('exportPreviewBody').innerHTML = '<tr class="empty-row"><td colspan="4">该月份暂无已审批工时记录</td></tr>';
+    return;
+  }
+  var map = {};
+  worklogs.forEach(function(w){
+    var key = w.empId+'|'+w.projCode;
+    if(!map[key]) map[key] = {empId:w.empId,empName:w.empName,projCode:w.projCode,projName:w.projName,normalHours:0,overtimeHours:0,totalHours:0,count:0};
+    map[key].normalHours += (w.normalHours || 0);
+    map[key].overtimeHours += (w.overtimeHours || 0);
+    map[key].totalHours += w.hours;
+    map[key].count++;
+  });
+  var data = Object.values(map).sort(function(a,b){ return a.empId.localeCompare(b.empId) });
+  document.getElementById('exportPreviewBody').innerHTML = data.map(function(r){
+    var otText = r.overtimeHours>0 ? ' <span class="ot-badge ot">加'+r.overtimeHours.toFixed(1)+'h</span>' : '';
+    return '<tr><td>'+escHtml(r.empId)+' '+escHtml(r.empName)+'</td><td>'+escHtml(r.projCode)+' '+escHtml(r.projName)+'</td><td style="text-align:right;font-weight:600">'+r.totalHours.toFixed(1)+otText+'</td><td style="text-align:right">'+r.count+'</td></tr>';
+  }).join('');
+}
+
+function exportMonthWorklogs(){
+  var month = document.getElementById('exportMonth').value;
+  if(!month) return alert('请选择月份');
+  var worklogs = getWorklogs().filter(function(w){ return isWorklogApproved(w) && w.date.indexOf(month)===0 });
+  if(worklogs.length===0) return alert('该月份没有已审批的工时记录');
+  var map = {};
+  worklogs.forEach(function(w){
+    var key = w.empId+'|'+w.projCode;
+    if(!map[key]) map[key] = {empId:w.empId,empName:w.empName,projCode:w.projCode,projName:w.projName,normalHours:0,overtimeHours:0,totalHours:0,count:0};
+    map[key].normalHours += (w.normalHours || 0);
+    map[key].overtimeHours += (w.overtimeHours || 0);
+    map[key].totalHours += w.hours;
+    map[key].count++;
+  });
+  var data = Object.values(map).sort(function(a,b){ return a.empId.localeCompare(b.empId) });
+  var totalNormalHours = 0, totalOtHours = 0, totalAllHours = 0;
+  var html = '<table><thead><tr><th>员工工号</th><th>员工姓名</th><th>项目编号</th><th>项目名称</th><th>正常工时(h)</th><th>加班工时(h)</th><th>总工时(h)</th><th>记录数</th></tr></thead><tbody>';
+  data.forEach(function(r){
+    totalNormalHours += r.normalHours; totalOtHours += r.overtimeHours; totalAllHours += r.totalHours;
+    html+='<tr><td>'+r.empId+'</td><td>'+r.empName+'</td><td>'+r.projCode+'</td><td>'+r.projName+'</td><td>'+r.normalHours.toFixed(1)+'</td><td>'+r.overtimeHours.toFixed(1)+'</td><td>'+r.totalHours.toFixed(1)+'</td><td>'+r.count+'</td></tr>';
+  });
+  html+='<tr style="font-weight:bold"><td colspan="4" style="text-align:right">合计</td><td>'+totalNormalHours.toFixed(1)+'</td><td>'+totalOtHours.toFixed(1)+'</td><td>'+totalAllHours.toFixed(1)+'</td><td>'+worklogs.length+'</td></tr>';
+  html+='</tbody></table>';
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(html,'text/html');
+  var table = doc.querySelector('table');
+  var wb = XLSX.utils.table_to_book(table,{sheet:'工时汇总'});
+  XLSX.writeFile(wb,'工时汇总_'+month+'.xlsx');
+}
+
+function exportMonthWorklogDetail(){
+  var month = document.getElementById('exportMonth').value;
+  if(!month) return alert('请选择月份');
+  var worklogs = getWorklogs().filter(function(w){ return isWorklogApproved(w) && w.date.indexOf(month)===0 });
+  if(worklogs.length===0) return alert('该月份没有已审批的工时记录');
+  worklogs.sort(function(a,b){ return a.date.localeCompare(b.date) || a.empId.localeCompare(b.empId) });
+  var html = '<table><thead><tr><th>日期</th><th>员工工号</th><th>员工姓名</th><th>项目编号</th><th>项目名称</th><th>正常工时(h)</th><th>加班工时(h)</th><th>总工时(h)</th><th>是否加班</th><th>工作内容</th></tr></thead><tbody>';
+  worklogs.forEach(function(w){ html+='<tr><td>'+w.date+'</td><td>'+w.empId+'</td><td>'+w.empName+'</td><td>'+w.projCode+'</td><td>'+w.projName+'</td><td>'+(w.normalHours||0).toFixed(1)+'</td><td>'+(w.overtimeHours||0).toFixed(1)+'</td><td>'+w.hours+'</td><td>'+(w.isOvertime?'是':'否')+'</td><td>'+escHtml(w.content)+'</td></tr>'; });
+  html+='</tbody></table>';
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(html,'text/html');
+  var table = doc.querySelector('table');
+  var wb = XLSX.utils.table_to_book(table,{sheet:'工作日志明细'});
+  XLSX.writeFile(wb,'工作日志明细_'+month+'.xlsx');
+}
+
+// ==================== 工具函数 ====================
+function escHtml(str){
+  if(!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 回车键登录
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter' && document.getElementById('loginOverlay').style.display!=='none' && !currentUser){
+    e.preventDefault();
+    if(selectedRole){ doLogin(); }
+  }
+});
+</script>
+
+
+
+</body></html>
