@@ -355,6 +355,9 @@ tbody tr:hover{background:#f8f9fb}
   <button onclick="location.reload()" style="background:rgba(255,255,255,0.25);color:#fff;border:1px solid rgba(255,255,255,0.4);padding:5px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">🔄 刷新查看</button>
   <button onclick="document.getElementById('syncUpdateBanner').style.display='none'" style="background:transparent;color:rgba(255,255,255,0.8);border:none;cursor:pointer;font-size:18px;line-height:1">×</button>
 </div>
+<div id="integrityWarning" style="display:none;background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;padding:10px 20px;text-align:center;font-size:13px;font-weight:600;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">
+  <button onclick="document.getElementById('integrityWarning').style.display='none'" style="background:transparent;color:rgba(255,255,255,0.8);border:none;cursor:pointer;font-size:18px;line-height:1">×</button>
+</div>
 
 <!-- 主内容 -->
 <main class="main-content">
@@ -480,8 +483,22 @@ tbody tr:hover{background:#f8f9fb}
 </div>
 <p id="pendingLevelHint" style="color:#888;font-size:13px;margin:-8px 0 16px"></p>
 <div id="pendingWorklogStats"></div>
+<!-- 批量操作工具栏 -->
+<div id="batchActionBar" style="display:none;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;padding:10px 16px;background:linear-gradient(135deg,#f0f4ff 0%,#f7f0ff 100%);border-radius:10px;border:1px solid #e0e8ff">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:600;color:#4a5568">
+      <input type="checkbox" id="pendingSelectAll" onchange="toggleSelectAllPending()" style="width:18px;height:18px;cursor:pointer;accent-color:#667eea">
+      全选
+    </label>
+    <span id="batchSelectedCount" style="font-size:13px;color:#888">已选 0 条</span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-success btn-sm" onclick="batchApproveAll()" style="padding:6px 18px;font-size:14px">✅ 批量通过</button>
+    <button class="btn btn-danger btn-sm" onclick="batchRejectAll()" style="padding:6px 18px;font-size:14px">❌ 批量驳回</button>
+  </div>
+</div>
 <div class="table-wrap"><table>
-<thead><tr><th>日期</th><th>员工</th><th>工时/项目</th><th>工作摘要</th><th>审批进度</th><th>操作</th></tr></thead>
+<thead><tr><th style="width:40px">选</th><th>日期</th><th>员工</th><th>工时/项目</th><th>工作摘要</th><th>审批进度</th><th>操作</th></tr></thead>
 <tbody id="pendingWorklogList"></tbody>
 </table></div>
 </div>
@@ -808,9 +825,9 @@ async function setAdminPassword(pwd){
 async function supaLoadAll(){
   try {
     var resp = await fetch(SUPA_URL+'/rest/v1/worktime_data?select=*',{headers:SUPA_HEADERS});
-    if(!resp.ok) return false;
+    if(!resp.ok) return {status:'error'};
     var rows = await resp.json();
-    if(!rows||rows.length===0) return false;
+    if(!rows||rows.length===0) return {status:'empty'};
     rows.forEach(function(r){
       var remoteData = r.data;
       // 防护：云端数据为空但本地有非空数据 → 不覆盖
@@ -822,8 +839,27 @@ async function supaLoadAll(){
         } catch(e){}
       }
       localStorage.setItem(r.id, typeof remoteData === 'string' ? remoteData : JSON.stringify(remoteData));
+      if(r.updated_at) localStorage.setItem('wt_sync_at_' + r.id, r.updated_at);
     });
-    return true;
+    return {status:'ok'};
+  } catch(e){ return {status:'error'}; }
+}
+
+// 检测本地数据是否为演示数据（张伟/李娜/王强/赵敏/陈明）
+function isDemoData(){
+  try {
+    var emps = getEmployees();
+    if(!emps || emps.length === 0) return true;
+    // 演示数据的特征：包含 EMP001/张伟
+    var demo = emps.find(function(e){ return e.id === 'EMP001' && e.name === '张伟'; });
+    if(demo) return true;
+    // 也检测工时是否只有演示记录
+    var logs = getWorklogs();
+    if(logs && logs.length > 0 && logs.length <= 5){
+      var hasDemo = logs.find(function(w){ return w.empId === 'EMP001' || w.empName === '张伟'; });
+      if(hasDemo) return true;
+    }
+    return false;
   } catch(e){ return false; }
 }
 
@@ -859,11 +895,61 @@ async function syncFromServer(){
     });
     if(changed){
       _syncCount++;
+      // 自动刷新当前页面视图（云端修复的数据即时生效）
+      try {
+        var activeTab = document.querySelector('.tab.active');
+        if(activeTab){
+          var tn = activeTab.id.replace('tab-','');
+          if(tn==='dashboard') renderDashboard();
+          else if(tn==='worklog'){ populateWorklogForm(); renderMyWorklogs(); }
+          else if(tn==='pending') renderPendingWorklogs();
+          else if(tn==='allworklogs') renderAllWorklogs();
+          else if(tn==='employees') renderEmployeeList();
+          else if(tn==='projects'){ renderCategoryList(); renderWorkhourTypeList(); renderWorkhourTypeNameList(); renderProjectList(); }
+          else if(tn==='export') refreshExportPreview();
+        }
+      } catch(e){}
       var banner = document.getElementById('syncUpdateBanner');
       if(banner) banner.style.display = 'flex';
     }
+    // 每次同步后检测数据完整性
+    checkDataIntegrity();
   } catch(e){}
 }
+
+// 数据完整性检测：检查工时记录的 empId 是否与员工表一致（防止编号错乱）
+var _integrityCheckDone = false;
+function checkDataIntegrity(){
+  if(_integrityCheckDone) return;
+  try {
+    var emps = getEmployees();
+    if(!emps || emps.length===0) return;
+    var empMap = {};
+    emps.forEach(function(e){ empMap[e.id] = e.name; });
+
+    var logs = getWorklogs();
+    if(!logs || logs.length===0) return;
+
+    var mismatches = [];
+    logs.forEach(function(w){
+      if(empMap[w.empId] && empMap[w.empId] !== w.empName){
+        mismatches.push({ id: w.id, empId: w.empId, loggedName: w.empName, correctName: empMap[w.empId], date: w.date });
+      }
+    });
+
+    if(mismatches.length > 0){
+      console.error('⚠️ 数据完整性警告：' + mismatches.length + ' 条工时记录的姓名与员工表不匹配！', mismatches);
+      var banner = document.getElementById('integrityWarning');
+      if(banner){
+        banner.innerHTML = '⚠️ 检测到 <b>' + mismatches.length + '</b> 条工时记录姓名与员工编号不匹配，请联系管理员修复！';
+        banner.style.display = 'block';
+      }
+    }
+    _integrityCheckDone = true;
+  } catch(e){}
+}
+// 重置检测标记（切换员工/管理员登录后重新检测）
+function resetIntegrityCheck(){ _integrityCheckDone = false; }
 
 function startSyncPolling(){
   if(_syncTimer) return;
@@ -884,6 +970,11 @@ function updateSyncUI(){
 
 // 首次初始化：把所有localStorage数据推送到Supabase
 function pushAllToSupabase(){
+  // 安全防护：绝不推送演示数据到云端（防止覆盖真实数据）
+  if(isDemoData()){
+    console.warn('⚠️ 检测到演示数据，拒绝推送到云端。请先导入真实数据。');
+    return;
+  }
   var keys = ['wt_employees','wt_projects','wt_project_categories','wt_workhour_types','wt_workhour_type_names','wt_worklogs','wt_worktime','wt_sys_name','wt_admin_pwd','wt_approval_levels'];
   keys.forEach(function(k){
     var val = localStorage.getItem(k);
@@ -1224,11 +1315,23 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('exportMonth').addEventListener('change', refreshExportPreview);
 
   // 从 Supabase 拉取云端数据
-  supaLoadAll().then(function(hasData){
+  supaLoadAll().then(function(result){
     applySysName();
-    if(!hasData && getEmployees().length===0) loadDemoData();
-    // 第一次加载demo数据后，写入Supabase
-    if(!hasData) pushAllToSupabase();
+    var st = result.status;
+    if(st === 'empty'){
+      // 云端确认无数据（首次使用），加载演示数据到本地
+      if(getEmployees().length === 0) loadDemoData();
+      // 注意：演示数据不推送到云端，由管理员手动导入真实数据后推送
+    } else if(st === 'error'){
+      // 网络错误：使用本地缓存，不加载演示数据，不推送
+      console.warn('⚠️ 云端连接失败，使用本地缓存数据');
+      if(getEmployees().length === 0){
+        // 本地也没有数据，显示提示
+        var mainEl = document.getElementById('mainPage');
+        if(mainEl) mainEl.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#666"><h2>连接云端失败</h2><p>请检查网络后刷新页面。</p><p style="font-size:13px;color:#999">如反复出现，请联系管理员。</p></div>';
+      }
+    }
+    // 'ok' 状态：云端数据已加载到本地，正常使用
     updateSyncUI();
     // 启动轮询（实时检测其他设备变更）
     startSyncPolling();
@@ -1236,25 +1339,26 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 
 function loadDemoData(){
-  setStore('wt_employees',[
+  // 演示数据只写入本地 localStorage，不推送到云端（防止覆盖真实数据）
+  localStorage.setItem('wt_employees', JSON.stringify([
     {id:'EMP001',name:'张伟',department:'AI算法部',position:'高级算法工程师',password:'123456',role:'approver',approvalLevel:1},
     {id:'EMP002',name:'李娜',department:'软件开发部',position:'全栈开发工程师',password:'123456',role:'employee',approvalLevel:0},
     {id:'EMP003',name:'王强',department:'数据工程部',position:'数据工程师',password:'123456',role:'employee',approvalLevel:0},
     {id:'EMP004',name:'赵敏',department:'人事部',position:'人事经理',password:'123456',role:'approver',approvalLevel:2},
     {id:'EMP005',name:'陈明',department:'管理层',position:'总经理',password:'123456',role:'approver',approvalLevel:3}
-  ]);
-  setStore('wt_projects',[
+  ]));
+  localStorage.setItem('wt_projects', JSON.stringify([
     {code:'RD2026-001',name:'AI探矿算法优化平台',start:'2026-01-01',end:'2026-12-31',desc:'基于深度学习的矿物识别算法研究与平台开发'},
     {code:'RD2026-002',name:'地质数据智能处理系统',start:'2026-03-01',end:'2026-09-30',desc:'地质勘探数据的智能采集、清洗与标注系统'},
     {code:'RD2026-003',name:'探矿软件集成平台',start:'2026-04-01',end:'2026-10-31',desc:'各探矿模块的系统集成与性能优化'}
-  ]);
-  setStore('wt_worklogs',[
+  ]));
+  localStorage.setItem('wt_worklogs', JSON.stringify([
     {id:1,empId:'EMP001',empName:'张伟',projCode:'RD2026-001',projName:'AI探矿算法优化平台',date:'2026-06-01',normalHours:8,overtimeHours:0,hours:8,isOvertime:false,content:'完成深度学习模型架构设计与核心代码编写',status:'已审批',currentLevel:0,approvalHistory:[{level:1,approver:'张伟',action:'approve',time:'2026-06-01 18:00'},{level:2,approver:'赵敏',action:'approve',time:'2026-06-02 09:00'},{level:3,approver:'陈明',action:'approve',time:'2026-06-02 14:00'}]},
     {id:2,empId:'EMP001',empName:'张伟',projCode:'RD2026-001',projName:'AI探矿算法优化平台',date:'2026-06-02',normalHours:8,overtimeHours:2,hours:10,isOvertime:true,content:'优化CNN模型参数，提高矿物识别准确率至93%（含加班2h）',status:'已审批',currentLevel:0,approvalHistory:[{level:1,approver:'张伟',action:'approve',time:'2026-06-02 20:00'},{level:2,approver:'赵敏',action:'approve',time:'2026-06-03 09:00'},{level:3,approver:'陈明',action:'approve',time:'2026-06-03 14:00'}]},
     {id:3,empId:'EMP002',empName:'李娜',projCode:'RD2026-001',projName:'AI探矿算法优化平台',date:'2026-06-01',normalHours:8,overtimeHours:0,hours:8,isOvertime:false,content:'开发前端交互界面和数据可视化组件',status:'已审批',currentLevel:0,approvalHistory:[]},
     {id:4,empId:'EMP003',empName:'王强',projCode:'RD2026-002',projName:'地质数据智能处理系统',date:'2026-06-01',normalHours:8,overtimeHours:0,hours:8,isOvertime:false,content:'地质数据采集接口开发与数据清洗流程优化',status:'待一级审批',currentLevel:1,approvalHistory:[]},
     {id:5,empId:'EMP002',empName:'李娜',projCode:'RD2026-002',projName:'地质数据智能处理系统',date:'2026-06-02',normalHours:8,overtimeHours:0,hours:7,isOvertime:false,content:'数据可视化图表组件开发',status:'待二级审批',currentLevel:2,approvalHistory:[{level:1,approver:'张伟',action:'approve',time:'2026-06-02 18:00'}]}
-  ]);
+  ]));
 }
 
 // ==================== 登录 ====================
@@ -1301,6 +1405,7 @@ function doLogin(){
     if(!pwd){ showLoginError('请输入管理员密码','mgr'); return; }
     if(pwd !== getAdminPassword()){ showLoginError('密码错误！','mgr'); return; }
     currentUser = { id:'admin', name:'管理员', role:'admin' };
+    resetIntegrityCheck();
     enterSystem();
   } else {
     var name = document.getElementById('loginName').value.trim();
@@ -1312,6 +1417,7 @@ function doLogin(){
     if(!emp){ showLoginError('姓名不存在，请检查是否输入正确'); return; }
     if(emp.password !== pwd){ showLoginError('密码错误'); return; }
     currentUser = { id:emp.id, name:emp.name, role:emp.role, approvalLevel:emp.approvalLevel||0 };
+    resetIntegrityCheck();
     enterSystem();
   }
 }
@@ -1340,11 +1446,14 @@ function enterSystem(){
   // 员工/审批人默认进工时填报页，管理员进首页，查看者进首页
   var defaultTab = (currentUser.role==='admin'||currentUser.role==='viewer')?'dashboard':'worklog';
   switchTab(defaultTab, null);
+  // 进入系统后检测数据完整性
+  setTimeout(checkDataIntegrity, 500);
 }
 
 function doLogout(){
   currentUser = null;
   selectedRole = null;
+  resetIntegrityCheck();
   document.getElementById('loginOverlay').style.display = 'flex';
   document.getElementById('appMain').style.display = 'none';
   document.querySelectorAll('.role-option').forEach(function(o){ o.classList.remove('selected') });
@@ -1883,6 +1992,176 @@ function groupByBatch(worklogs){
   return groups;
 }
 
+// ==================== 批量审核 ====================
+function toggleSelectAllPending(){
+  var cb = document.getElementById('pendingSelectAll');
+  var cbs = document.querySelectorAll('.batch-cb');
+  cbs.forEach(function(c){ c.checked = cb.checked; });
+  updateBatchSelectedCount();
+}
+
+function updateBatchSelectedCount(){
+  var cbs = document.querySelectorAll('.batch-cb');
+  var checked = 0;
+  cbs.forEach(function(c){ if(c.checked) checked++; });
+  var span = document.getElementById('batchSelectedCount');
+  if(span) span.textContent = '已选 ' + checked + ' 条';
+  var selectAllCb = document.getElementById('pendingSelectAll');
+  if(selectAllCb) selectAllCb.checked = cbs.length > 0 && checked === cbs.length;
+}
+
+function getSelectedBatchRefs(){
+  var refs = [];
+  document.querySelectorAll('.batch-cb').forEach(function(c){
+    if(c.checked) refs.push(c.value);
+  });
+  return refs;
+}
+
+function batchApproveSelected(refs){
+  var worklogs = getWorklogs();
+  var maxLevels = getApprovalLevelCount();
+  var approverLevel = currentUser.role==='admin' ? 0 : (currentUser.approvalLevel||0);
+  var updated = false;
+  var unauthorized = false;
+  var levelNames = ['一','二','三'];
+
+  // 检查权限
+  refs.forEach(function(batchRef){
+    worklogs.forEach(function(w){
+      var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+      if(key===batchRef && isWorklogPending(w)){
+        var currentLevel = getWorklogLevel(w);
+        if(currentUser.role!=='admin'){
+          if(currentLevel===1 && w.level1ApproverId && w.level1ApproverId!==currentUser.id){
+            unauthorized = true;
+          } else if(approverLevel!==currentLevel){
+            unauthorized = true;
+          }
+        }
+      }
+    });
+  });
+  if(unauthorized){
+    alert('⚠️ 您无权审批当前选中的部分工时！\n请确认所选工时均在您的审批层级范围内。');
+    return false;
+  }
+
+  // 执行审批
+  refs.forEach(function(batchRef){
+    worklogs.forEach(function(w){
+      var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+      if(key===batchRef && isWorklogPending(w)){
+        var currentLevel = getWorklogLevel(w);
+        if(!w.approvalHistory) w.approvalHistory = [];
+        w.approvalHistory.push({
+          level: currentLevel,
+          approver: currentUser.name,
+          action: 'approve',
+          time: new Date().toLocaleString('zh-CN')
+        });
+        if(currentLevel >= maxLevels){
+          w.status = '已审批';
+          w.currentLevel = 0;
+        } else {
+          w.currentLevel = currentLevel + 1;
+          w.status = '待' + levelNames[currentLevel] + '级审批';
+        }
+        updated = true;
+      }
+    });
+  });
+  return updated;
+}
+
+function batchRejectSelected(refs){
+  var worklogs = getWorklogs();
+  var approverLevel = currentUser.role==='admin' ? 0 : (currentUser.approvalLevel||0);
+  var unauthorized = false;
+
+  refs.forEach(function(batchRef){
+    worklogs.forEach(function(w){
+      var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+      if(key===batchRef && isWorklogPending(w)){
+        var currentLevel = getWorklogLevel(w);
+        if(currentUser.role!=='admin'){
+          if(currentLevel===1 && w.level1ApproverId && w.level1ApproverId!==currentUser.id){
+            unauthorized = true;
+          } else if(approverLevel!==currentLevel){
+            unauthorized = true;
+          }
+        }
+      }
+    });
+  });
+  if(unauthorized){
+    alert('⚠️ 您无权审批当前选中的部分工时！\n请确认所选工时均在您的审批层级范围内。');
+    return false;
+  }
+
+  var updated = false;
+  refs.forEach(function(batchRef){
+    worklogs.forEach(function(w){
+      var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
+      if(key===batchRef && isWorklogPending(w)){
+        var currentLevel = getWorklogLevel(w);
+        if(!w.approvalHistory) w.approvalHistory = [];
+        w.approvalHistory.push({
+          level: currentLevel,
+          approver: currentUser.name,
+          action: 'reject',
+          time: new Date().toLocaleString('zh-CN')
+        });
+        w.status='已驳回';
+        w.currentLevel = 0;
+        updated = true;
+      }
+    });
+  });
+  return updated;
+}
+
+async function batchApproveAll(){
+  var refs = getSelectedBatchRefs();
+  if(refs.length===0){
+    alert('请先勾选要批量通过的工时记录');
+    return;
+  }
+  if(!confirm('确定批量通过选中的 '+refs.length+' 条工时记录？\n\n此操作将一次性通过所有选中记录的当前审批层级。')) return;
+  var worklogs = getWorklogs();
+  var success = batchApproveSelected(refs);
+  if(success){
+    // 用修改后的 worklogs 写回
+    try {
+      await setStore('wt_worklogs', worklogs);
+      alert('✅ 批量审批完成！已通过 '+refs.length+' 条记录并同步成功');
+    } catch(e){
+      alert('❌ 同步失败：' + e.message + '\n本地已保存，请检查网络后手动同步。');
+    }
+    renderPendingWorklogs(); renderDashboard(); renderAllWorklogs();
+  }
+}
+
+async function batchRejectAll(){
+  var refs = getSelectedBatchRefs();
+  if(refs.length===0){
+    alert('请先勾选要批量驳回的工时记录');
+    return;
+  }
+  if(!confirm('确定批量驳回选中的 '+refs.length+' 条工时记录？\n\n此操作将一次性驳回所有选中记录。')) return;
+  var worklogs = getWorklogs();
+  var success = batchRejectSelected(refs);
+  if(success){
+    try {
+      await setStore('wt_worklogs', worklogs);
+      alert('✅ 批量驳回完成！已驳回 '+refs.length+' 条记录并同步成功');
+    } catch(e){
+      alert('❌ 同步失败：' + e.message + '\n本地已保存，请检查网络后手动同步。');
+    }
+    renderPendingWorklogs(); renderDashboard(); renderAllWorklogs();
+  }
+}
+
 function toggleBatchRow(batchRef){
   // 如果点击的是按钮（审批/驳回/删除），不触发展开
   if(event && event.target && event.target.closest('button')) return;
@@ -2255,9 +2534,15 @@ function renderPendingWorklogs(){
   // === 待审批：按批次分组 ===
   var levelText = ['一','二','三'][approverLevel-1] || '一';
   if(pendingLogs.length===0){
-    document.getElementById('pendingWorklogList').innerHTML = '<tr class="empty-row"><td colspan="6">✅ 暂无待您审批的记录（'+levelText+'级审核）</td></tr>';
+    document.getElementById('pendingWorklogList').innerHTML = '<tr class="empty-row"><td colspan="7">✅ 暂无待您审批的记录（'+levelText+'级审核）</td></tr>';
+    document.getElementById('batchActionBar').style.display = 'none';
   } else {
     var groups = groupByBatch(pendingLogs);
+    // 显示批量操作栏
+    document.getElementById('batchActionBar').style.display = 'flex';
+    var selectAllCb = document.getElementById('pendingSelectAll');
+    if(selectAllCb) selectAllCb.checked = false;
+    updateBatchSelectedCount();
     var rows = '';
     groups.forEach(function(g, gi){
       var itemCount = g.items.length;
@@ -2270,6 +2555,7 @@ function renderPendingWorklogs(){
       var batchRef = g.batchId ? 'B'+g.batchId : ('D'+g.empId+'_'+g.date);
       var progressHtml = approvalProgressHtml(g.items[0]);
       rows += '<tr class="batch-row" onclick="toggleBatchRow(\''+batchRef+'\')" data-batch="'+batchRef+'">' +
+        '<td onclick="event.stopPropagation()"><input type="checkbox" class="batch-cb" value="'+batchRef+'" onchange="updateBatchSelectedCount()" style="width:18px;height:18px;cursor:pointer;accent-color:#667eea"></td>' +
         '<td>'+escHtml(g.date)+'</td>' +
         '<td>'+escHtml(g.empName)+otBadge+'</td>' +
         '<td>'+hoursHtml+countBadge+'</td>' +
@@ -2278,7 +2564,7 @@ function renderPendingWorklogs(){
         '<td><button class="btn btn-success btn-sm btn-approve" data-batch="'+batchRef+'">✅ 通过</button> <button class="btn btn-danger btn-sm btn-reject" data-batch="'+batchRef+'">❌ 驳回</button></td>' +
         '</tr>';
       // 展开明细行
-      rows += '<tr class="batch-detail-row" id="batchDetail_'+batchRef+'"><td colspan="6"><table class="batch-detail-table">' +
+      rows += '<tr class="batch-detail-row" id="batchDetail_'+batchRef+'"><td colspan="7"><table class="batch-detail-table">' +
         g.items.map(function(w){
           var subHours = otBadgeHtml(w.hours, w.normalHours||0, w.overtimeHours||0);
           var catText = w.category ? '<span style="background:#eef0ff;color:#667eea;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600">'+escHtml(w.category)+'</span>' : '<span style="color:#ccc">-</span>';
