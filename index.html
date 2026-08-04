@@ -763,8 +763,109 @@ function isEmptyData(val){
   return false;
 }
 
+// 自动备份工时数据到 localStorage（保留最近5份）
+function autoBackupWorklogs(){
+  try {
+    var worklogsStr = localStorage.getItem('wt_worklogs');
+    if(!worklogsStr) return;
+    var data = JSON.parse(worklogsStr);
+    if(!Array.isArray(data) || data.length === 0) return;
+    var timestamp = new Date().toISOString();
+    var backupKey = 'wt_worklogs_backup_' + timestamp;
+    localStorage.setItem(backupKey, worklogsStr);
+    // 清理旧备份，只保留最近5份
+    var backups = [];
+    for(var i=0; i<localStorage.length; i++){
+      var k = localStorage.key(i);
+      if(k && k.indexOf('wt_worklogs_backup_')===0) backups.push(k);
+    }
+    backups.sort(); // ISO时间戳天然按时间排序
+    while(backups.length > 5){
+      localStorage.removeItem(backups.shift());
+    }
+  } catch(e){ console.error('autoBackupWorklogs error', e); }
+}
+
+// 从备份恢复工时数据（控制台调用：listWorklogBackups() / restoreWorklogBackup(index)）
+function listWorklogBackups(){
+  var backups = [];
+  for(var i=0; i<localStorage.length; i++){
+    var k = localStorage.key(i);
+    if(k && k.indexOf('wt_worklogs_backup_')===0) backups.push(k);
+  }
+  backups.sort().reverse();
+  backups.forEach(function(k, idx){
+    var data = JSON.parse(localStorage.getItem(k));
+    console.log('['+idx+'] '+k.replace('wt_worklogs_backup_','')+' → '+data.length+' 条记录');
+  });
+  return backups;
+}
+function restoreWorklogBackup(idx){
+  var backups = listWorklogBackups();
+  if(idx >= backups.length){ console.error('索引超出范围'); return; }
+  var key = backups[idx];
+  var data = localStorage.getItem(key);
+  localStorage.setItem('wt_worklogs', data);
+  console.log('✅ 已从备份恢复 '+JSON.parse(data).length+' 条记录，请刷新页面');
+}
+// 提交前同步合并：从云端拉取最新 wt_worklogs，与本地按 id 合并
+// 返回合并后的数组（已写入 localStorage）
+async function syncAndMergeWorklogs(){
+  try {
+    var resp = await fetch(SUPA_URL+'/rest/v1/worktime_data?id=eq.wt_worklogs&select=*',{headers:SUPA_HEADERS});
+    if(!resp.ok) return getWorklogs(); // 网络失败，用本地
+    var rows = await resp.json();
+    if(!rows || rows.length === 0) return getWorklogs(); // 云端空，用本地
+
+    var cloudData = rows[0].data;
+    if(!Array.isArray(cloudData)) cloudData = [];
+    // 防护：云端是演示数据则不合并
+    if(cloudData.length <= 5 && cloudData.some(function(w){ return w.empId==='EMP001' || w.empName==='张伟'; })){
+      return getWorklogs();
+    }
+
+    var localWorklogs = getWorklogs();
+    var byId = {};
+
+    // 先放云端数据
+    cloudData.forEach(function(w){ byId[w.id] = w; });
+
+    // 再合并本地数据
+    localWorklogs.forEach(function(w){
+      if(!byId[w.id]){
+        // 本地有、云端没有 → 保留（刚新增的）
+        byId[w.id] = w;
+      } else {
+        // 两边都有 → 保留 approvalHistory 更长的（审批进度更靠前的那条）
+        var cloudHist = (byId[w.id].approvalHistory || []).length;
+        var localHist = (w.approvalHistory || []).length;
+        if(localHist > cloudHist){
+          byId[w.id] = w;
+        } else if(localHist === cloudHist){
+          // 审批历史一样长 → 如果本地状态变了（刚操作过），优先本地
+          if(byId[w.id].status !== w.status) byId[w.id] = w;
+        }
+      }
+    });
+
+    var merged = Object.keys(byId).map(function(k){ return byId[k]; });
+    merged.sort(function(a,b){ return a.id - b.id; });
+
+    // 写回 localStorage + 更新同步时间戳
+    localStorage.setItem('wt_worklogs', JSON.stringify(merged));
+    if(rows[0].updated_at) localStorage.setItem('wt_sync_at_wt_worklogs', rows[0].updated_at);
+
+    return merged;
+  } catch(e){
+    console.error('syncAndMergeWorklogs error', e);
+    return getWorklogs(); // 出错时用本地数据兜底
+  }
+}
+
 // 写入 Supabase（异步，不阻塞用户操作）
 async function supaSet(key, val){
+  // 工时数据推送前自动备份
+  if(key === 'wt_worklogs') autoBackupWorklogs();
   localStorage.setItem(key, JSON.stringify(val));
   try {
     var resp = await fetch(SUPA_URL+'/rest/v1/worktime_data',{
@@ -1732,7 +1833,7 @@ function otBadgeHtml(hours, normalHours, overtimeHours){
   return hours + 'h <span class="ot-badge ot" title="加班 '+overtimeHours+'h">加'+overtimeHours+'h</span>';
 }
 
-function handleAddWorklog(e){
+async function handleAddWorklog(e){
   e.preventDefault();
   var date = document.getElementById('wlDate').value;
   var entries = document.querySelectorAll('#worklogEntries .wl-entry');
@@ -1748,7 +1849,6 @@ function handleAddWorklog(e){
   var level1ApproverId = approverParts[0];
   var level1ApproverName = approverParts[1] || '';
 
-  var worklogs = getWorklogs();
   var totalAllHours = 0;
   var newRecords = [];
   var batchId = Date.now(); // 同次提交共享 batchId
@@ -1806,6 +1906,8 @@ function handleAddWorklog(e){
     if(!confirm('⚠️ 今日总工时 ' + totalAllHours.toFixed(1) + 'h 超出标准打卡时间（' + ws.startTime + '-' + ws.endTime + '，标准 ' + STANDARD.toFixed(1) + 'h）。\n\n确定要提交吗？')) return;
   }
 
+  // 提交前先从云端同步合并最新数据（防止多用户并发覆盖）
+  var worklogs = await syncAndMergeWorklogs();
   worklogs = worklogs.concat(newRecords);
   setStore('wt_worklogs', worklogs);
 
@@ -2128,7 +2230,8 @@ async function batchApproveAll(){
     return;
   }
   if(!confirm('确定批量通过选中的 '+refs.length+' 条工时记录？\n\n此操作将一次性通过所有选中记录的当前审批层级。')) return;
-  var worklogs = getWorklogs();
+  // 先从云端同步合并最新数据（防止多用户并发覆盖）
+  var worklogs = await syncAndMergeWorklogs();
   var success = batchApproveSelected(refs, worklogs);
   if(success){
     // 用修改后的 worklogs 写回
@@ -2149,7 +2252,8 @@ async function batchRejectAll(){
     return;
   }
   if(!confirm('确定批量驳回选中的 '+refs.length+' 条工时记录？\n\n此操作将一次性驳回所有选中记录。')) return;
-  var worklogs = getWorklogs();
+  // 先从云端同步合并最新数据（防止多用户并发覆盖）
+  var worklogs = await syncAndMergeWorklogs();
   var success = batchRejectSelected(refs, worklogs);
   if(success){
     try {
@@ -2212,11 +2316,12 @@ async function approveBatch(batchRef){
   }
   if(!confirm('确定通过该批次所有工时记录？')) return;
   
+  // 先从云端同步合并最新数据（防止多用户并发覆盖）
+  worklogs = await syncAndMergeWorklogs();
   worklogs.forEach(function(w){
     var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
     if(key===batchRef && isWorklogPending(w)){
       var currentLevel = getWorklogLevel(w);
-      // 记录审批历史
       if(!w.approvalHistory) w.approvalHistory = [];
       w.approvalHistory.push({
         level: currentLevel,
@@ -2273,7 +2378,8 @@ async function rejectBatch(batchRef){
     return;
   }
   if(!confirm('确定驳回该批次所有工时记录？')) return;
-  var worklogs = getWorklogs();
+  // 先从云端同步合并最新数据（防止多用户并发覆盖）
+  var worklogs = await syncAndMergeWorklogs();
   var updated = false;
   worklogs.forEach(function(w){
     var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
