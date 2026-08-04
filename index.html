@@ -174,6 +174,15 @@ tbody tr:hover{background:#f8f9fb}
 .ot-badge.ot{background:#fff0f0;color:#eb3349}
 .ot-badge.normal{background:#e6f7f0;color:#11998e}
 
+/* ===== 日期类型徽章 ===== */
+.day-type-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.day-type-badge{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;line-height:1;transition:all 0.3s}
+.day-type-badge.workday{background:#e6f7f0;color:#11998e;border:1px solid #b7e4c7}
+.day-type-badge.weekend{background:#fff3e0;color:#e65100;border:1px solid #ffcc80}
+.day-type-badge.holiday{background:#ffe5e5;color:#c62828;border:1px solid #ffaaaa}
+.day-type-hint{font-size:12px;color:#888;font-weight:500;display:inline-flex;align-items:center;gap:4px}
+.day-type-hint.auto-ot{color:#eb3349;font-weight:600}
+
 /* ===== 多项目填报条目 ===== */
 .wl-entry{border:1px solid #e0e5ec;border-radius:14px;padding:18px 20px;margin-bottom:14px;background:#fafbfc;position:relative;transition:all 0.3s}
 .wl-entry:hover{border-color:#667eea;box-shadow:0 2px 8px rgba(102,126,234,0.08)}
@@ -436,7 +445,11 @@ tbody tr:hover{background:#f8f9fb}
 <form id="worklogForm" onsubmit="return handleAddWorklog(event)">
 <div class="form-group" style="margin-bottom:16px">
   <label>日期 *</label>
-  <input type="date" id="wlDate" required="" style="font-size:15px;font-weight:600">
+  <input type="date" id="wlDate" required="" style="font-size:15px;font-weight:600" onchange="onWorklogDateChange()">
+  <div class="day-type-row">
+    <span id="wlDateBadge" class="day-type-badge workday">工作日</span>
+    <span id="wlDateHint" class="day-type-hint"></span>
+  </div>
 </div>
 
 <!-- 项目条目容器 -->
@@ -904,6 +917,62 @@ function refreshApproverSelect(){
 function getProjectCategories(){ return getStore('wt_project_categories') }
 function getWorkhourTypes(){ return getStore('wt_workhour_types') }
 function getWorkhourTypeNames(){ return getStore('wt_workhour_type_names') }
+
+// ====== 中国法定节假日（2025-2027） ======
+// 格式: { 'YYYY-MM-DD': '节日名称' }
+var CHINESE_HOLIDAYS_2025_2027 = {
+  // 2025年
+  '2025-01-01': '元旦',
+  '2025-01-28': '春节', '2025-01-29': '春节', '2025-01-30': '春节', '2025-01-31': '春节',
+  '2025-02-01': '春节', '2025-02-02': '春节', '2025-02-03': '春节', '2025-02-04': '春节',
+  '2025-04-04': '清明节', '2025-04-05': '清明节', '2025-04-06': '清明节',
+  '2025-05-01': '劳动节', '2025-05-02': '劳动节', '2025-05-03': '劳动节', '2025-05-04': '劳动节', '2025-05-05': '劳动节',
+  '2025-05-31': '端午节', '2025-06-01': '端午节', '2025-06-02': '端午节',
+  '2025-10-01': '国庆节/中秋节', '2025-10-02': '国庆节/中秋节', '2025-10-03': '国庆节/中秋节',
+  '2025-10-04': '国庆节', '2025-10-05': '国庆节', '2025-10-06': '国庆节', '2025-10-07': '国庆节', '2025-10-08': '国庆节',
+  // 2026年
+  '2026-01-01': '元旦', '2026-01-02': '元旦', '2026-01-03': '元旦',
+  '2026-02-16': '春节', '2026-02-17': '春节', '2026-02-18': '春节', '2026-02-19': '春节',
+  '2026-02-20': '春节', '2026-02-21': '春节', '2026-02-22': '春节', '2026-02-23': '春节',
+  '2026-04-04': '清明节', '2026-04-05': '清明节', '2026-04-06': '清明节',
+  '2026-05-01': '劳动节', '2026-05-02': '劳动节', '2026-05-03': '劳动节',
+  '2026-06-19': '端午节', '2026-06-20': '端午节', '2026-06-21': '端午节',
+  '2026-09-25': '中秋节', '2026-09-26': '中秋节', '2026-09-27': '中秋节',
+  '2026-10-01': '国庆节', '2026-10-02': '国庆节', '2026-10-03': '国庆节', '2026-10-04': '国庆节',
+  '2026-10-05': '国庆节', '2026-10-06': '国庆节', '2026-10-07': '国庆节', '2026-10-08': '国庆节',
+  // 2027年
+  '2027-01-01': '元旦', '2027-01-02': '元旦', '2027-01-03': '元旦',
+  '2027-02-05': '春节', '2027-02-06': '春节', '2027-02-07': '春节', '2027-02-08': '春节',
+  '2027-02-09': '春节', '2027-02-10': '春节', '2027-02-11': '春节',
+  '2027-04-05': '清明节', '2027-04-06': '清明节',
+  '2027-05-01': '劳动节', '2027-05-02': '劳动节', '2027-05-03': '劳动节',
+  '2027-06-09': '端午节', '2027-06-10': '端午节', '2027-06-11': '端午节',
+  '2027-09-15': '中秋节', '2027-09-16': '中秋节', '2027-09-17': '中秋节',
+  '2027-10-01': '国庆节', '2027-10-02': '国庆节', '2027-10-03': '国庆节', '2027-10-04': '国庆节',
+  '2027-10-05': '国庆节', '2027-10-06': '国庆节', '2027-10-07': '国庆节'
+};
+
+// 获取日期类型: { type: 'workday'|'weekend'|'holiday', label: '工作日'|'周六'|'周日'|'元旦', holidayName?: '元旦' }
+function getDayType(dateStr){
+  if(!dateStr) return { type: 'workday', label: '工作日' };
+  var d = new Date(dateStr + 'T00:00:00');
+  if(isNaN(d.getTime())) return { type: 'workday', label: '工作日' };
+  var day = d.getDay(); // 0=周日, 6=周六
+  // 法定节假日优先
+  if(CHINESE_HOLIDAYS_2025_2027[dateStr]){
+    return { type: 'holiday', label: CHINESE_HOLIDAYS_2025_2027[dateStr], holidayName: CHINESE_HOLIDAYS_2025_2027[dateStr] };
+  }
+  if(day === 0 || day === 6){
+    return { type: 'weekend', label: day === 0 ? '周日' : '周六' };
+  }
+  return { type: 'workday', label: '工作日' };
+}
+
+function isSpecialDay(dateStr){
+  var t = getDayType(dateStr);
+  return t.type === 'weekend' || t.type === 'holiday';
+}
+
 function getAdminPassword(){ return localStorage.getItem('wt_admin_pwd') || 'admin123'; }
 async function setAdminPassword(pwd){
   localStorage.setItem('wt_admin_pwd', pwd);
@@ -1741,6 +1810,123 @@ function addWorklogEntry(data){
   return idx;
 }
 
+// 查找含"加班"关键字的工时类型/类型名称
+function _findOvertimeWorkhourType(){
+  var types = getWorkhourTypes() || [];
+  return types.find(function(t){ return /加班/.test(t.name || ''); });
+}
+function _findOvertimeWorkhourTypeName(){
+  var names = getWorkhourTypeNames() || [];
+  return names.find(function(n){ return /加班/.test(n.name || ''); });
+}
+
+// 填报工时：日期变更时的智能调整
+function onWorklogDateChange(){
+  var dateInput = document.getElementById('wlDate');
+  var badge = document.getElementById('wlDateBadge');
+  var hint = document.getElementById('wlDateHint');
+  if(!dateInput || !badge) return;
+  var dateStr = dateInput.value;
+  if(!dateStr){
+    badge.className = 'day-type-badge workday';
+    badge.textContent = '工作日';
+    hint.textContent = '';
+    return;
+  }
+  var t = getDayType(dateStr);
+  badge.className = 'day-type-badge ' + t.type;
+  badge.textContent = t.label;
+
+  if(t.type === 'workday'){
+    hint.className = 'day-type-hint';
+    hint.textContent = '';
+    return;
+  }
+  // 周末 / 法定节假日 → 自动调整为加班填报
+  var autoTip = (t.type === 'holiday')
+    ? '🎉 法定节假日 — 已自动勾选加班，可填写工时'
+    : '🏖 周末 — 已自动勾选加班，可填写工时';
+  hint.className = 'day-type-hint auto-ot';
+  hint.textContent = autoTip;
+
+  var ws = getWorktimeSettings();
+  var defaultOt = ws.standardHours || 8;
+  var otType = _findOvertimeWorkhourType();
+  var otTypeName = _findOvertimeWorkhourTypeName();
+
+  // 遍历所有项目条目，自动调整
+  var entries = document.querySelectorAll('#worklogEntries .wl-entry');
+  if(entries.length === 0){
+    // 还没有条目时，先自动加一个并应用加班默认值
+    var idx = addWorklogEntry();
+    var newEntry = document.querySelector('.wl-entry[data-idx="'+idx+'"]');
+    if(newEntry){
+      _applyOvertimeToEntry(newEntry, defaultOt, otType, otTypeName);
+    }
+  } else {
+    entries.forEach(function(entry){
+      _applyOvertimeToEntry(entry, defaultOt, otType, otTypeName);
+    });
+  }
+  calcWorklogTotal();
+}
+
+// 对单个条目应用加班自动调整
+function _applyOvertimeToEntry(entry, defaultOt, otType, otTypeName){
+  var check = entry.querySelector('.wl-entry-ot-check');
+  var otInput = entry.querySelector('.wl-entry-ot-hours');
+  if(check && !check.checked){
+    check.checked = true;
+    // 触发显示
+    var idx = entry.getAttribute('data-idx');
+    var otSection = document.getElementById('wlEntryOT_'+idx);
+    if(otSection) otSection.classList.add('show');
+  }
+  if(otInput && (!otInput.value || parseFloat(otInput.value) === 0)){
+    otInput.value = defaultOt;
+  }
+  if(otType){
+    var wht = entry.querySelector('.wl-entry-wht');
+    if(wht && wht.value !== otType.name){
+      wht.value = otType.name;
+    }
+  }
+  if(otTypeName){
+    var whtn = entry.querySelector('.wl-entry-whtn');
+    if(whtn && whtn.value !== otTypeName.name){
+      whtn.value = otTypeName.name;
+    }
+  }
+}
+
+// 编辑模式：日期变更时只更新徽章和提示，不覆盖已填数据
+function onEditWorklogDateChange(){
+  var dateInput = document.getElementById('editWlDate');
+  var badge = document.getElementById('editWlDateBadge');
+  var hint = document.getElementById('editWlDateHint');
+  if(!dateInput || !badge) return;
+  var dateStr = dateInput.value;
+  if(!dateStr){
+    badge.className = 'day-type-badge workday';
+    badge.textContent = '工作日';
+    hint.textContent = '';
+    return;
+  }
+  var t = getDayType(dateStr);
+  badge.className = 'day-type-badge ' + t.type;
+  badge.textContent = t.label;
+  if(t.type === 'holiday'){
+    hint.className = 'day-type-hint auto-ot';
+    hint.textContent = '🎉 法定节假日：建议在「加班工时」中填写当日工时';
+  } else if(t.type === 'weekend'){
+    hint.className = 'day-type-hint auto-ot';
+    hint.textContent = '🏖 周末：建议在「加班工时」中填写当日工时';
+  } else {
+    hint.className = 'day-type-hint';
+    hint.textContent = '';
+  }
+}
+
 function removeWorklogEntry(idx){
   var entries = document.getElementById('worklogEntries');
   var entry = entries.querySelector('.wl-entry[data-idx="'+idx+'"]');
@@ -1990,7 +2176,7 @@ function editMyWorklog(id){
     '📝 编辑工时记录',
     '修改后将自动重新提交为「待审批」状态',
     '<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:12px">' +
-      '<div class="form-group" style="margin-bottom:0"><label>日期 *</label><input type="date" id="editWlDate" value="'+escHtml(wl.date)+'"></div>' +
+      '<div class="form-group" style="margin-bottom:0"><label>日期 *</label><input type="date" id="editWlDate" value="'+escHtml(wl.date)+'" onchange="onEditWorklogDateChange()"><div class="day-type-row" style="margin-top:6px"><span id="editWlDateBadge" class="day-type-badge workday">工作日</span><span id="editWlDateHint" class="day-type-hint"></span></div></div>' +
       '<div class="form-group" style="margin-bottom:0"><label>项目大类 *</label><select id="editWlCat" required>'+catOptions+'</select></div>' +
     '</div>' +
     '<div class="form-group" style="margin-bottom:12px"><label>项目 *</label><select id="editWlProj" required>'+projOptions+'</select></div>' +
@@ -3150,6 +3336,12 @@ function openEditModal(title, subtitle, fieldsHtml, saveCallback){
   document.getElementById('editModalMsg').style.display = 'none';
   _editCallback = saveCallback;
   document.getElementById('editModal').style.display = 'flex';
+  // 打开后若存在工时日期字段，初始化日期类型徽章
+  setTimeout(function(){
+    if(document.getElementById('editWlDate') && typeof onEditWorklogDateChange === 'function'){
+      onEditWorklogDateChange();
+    }
+  }, 0);
 }
 
 function closeEditModal(){
