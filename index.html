@@ -529,6 +529,8 @@ tbody tr:hover{background:#f8f9fb}
 <div class="filter-bar">
 <select id="filterCategory" onchange="renderAllWorklogs()"><option value="">全部大类</option></select>
 <select id="filterProject" onchange="renderAllWorklogs()"><option value="">全部项目</option></select>
+<select id="filterWorkhourType" onchange="renderAllWorklogs()"><option value="">全部工时类型</option></select>
+<select id="filterWorkhourTypeName" onchange="renderAllWorklogs()"><option value="">全部类型名称</option></select>
 <select id="filterStatus" onchange="renderAllWorklogs()"><option value="">全部状态</option><option value="待一级审批">待一级审批</option><option value="待二级审批">待二级审批</option><option value="待三级审批">待三级审批</option><option value="已审批">已审批</option><option value="已驳回">已驳回</option></select>
 <select id="filterEmployee" onchange="renderAllWorklogs()"><option value="">全部员工</option></select>
 </div>
@@ -670,7 +672,7 @@ tbody tr:hover{background:#f8f9fb}
 <h2>📋 月度工时汇总预览</h2>
 <p class="subtitle" id="exportPreviewTitle">请选择月份后点击导出</p>
 <div class="table-wrap"><table>
-<thead><tr><th>员工</th><th>项目</th><th>工时合计(h)</th><th>记录数</th></tr></thead>
+<thead><tr><th>员工</th><th>项目大类</th><th>项目</th><th>工时类型</th><th>工时类型名称</th><th>工时合计(h)</th><th>记录数</th></tr></thead>
 <tbody id="exportPreviewBody"></tbody>
 </table></div>
 </div>
@@ -2722,10 +2724,14 @@ function renderAllWorklogs(){
   var worklogs = getWorklogs().sort(function(a,b){ return b.id-a.id });
   var fc = document.getElementById('filterCategory').value;
   var fp = document.getElementById('filterProject').value;
+  var fwt = document.getElementById('filterWorkhourType').value;
+  var fwtn = document.getElementById('filterWorkhourTypeName').value;
   var fs = document.getElementById('filterStatus').value;
   var fe = document.getElementById('filterEmployee').value;
   if(fc) worklogs = worklogs.filter(function(w){ return w.category===fc });
   if(fp) worklogs = worklogs.filter(function(w){ return w.projCode===fp });
+  if(fwt) worklogs = worklogs.filter(function(w){ return w.workhourType===fwt });
+  if(fwtn) worklogs = worklogs.filter(function(w){ return w.workhourTypeName===fwtn });
   if(fs) worklogs = worklogs.filter(function(w){
     if(fs==='待一级审批') return w.status==='待一级审批' || w.status==='待审批';
     return w.status===fs;
@@ -2734,11 +2740,17 @@ function renderAllWorklogs(){
   var categories = getProjectCategories();
   var projects = getProjects();
   var employees = getEmployees();
+  var workhourTypes = getWorkhourTypes();
+  var workhourTypeNames = getWorkhourTypeNames();
   // 恢复筛选值
   document.getElementById('filterCategory').innerHTML = '<option value="">全部大类</option>' +
     categories.map(function(c){ return '<option value="'+escHtml(c.name)+'"'+(c.name===fc?' selected':'')+'>'+escHtml(c.code)+' - '+escHtml(c.name)+'</option>' }).join('');
   document.getElementById('filterProject').innerHTML = '<option value="">全部项目</option>' +
     projects.map(function(p){ return '<option value="'+p.code+'"'+(p.code===fp?' selected':'')+'>'+p.code+' '+escHtml(p.name)+'</option>' }).join('');
+  document.getElementById('filterWorkhourType').innerHTML = '<option value="">全部工时类型</option>' +
+    workhourTypes.map(function(t){ return '<option value="'+escHtml(t.name)+'"'+(t.name===fwt?' selected':'')+'>'+escHtml(t.name)+'</option>' }).join('');
+  document.getElementById('filterWorkhourTypeName').innerHTML = '<option value="">全部类型名称</option>' +
+    workhourTypeNames.map(function(n){ return '<option value="'+escHtml(n.name)+'"'+(n.name===fwtn?' selected':'')+'>'+escHtml(n.name)+'</option>' }).join('');
   document.getElementById('filterEmployee').innerHTML = '<option value="">全部员工</option>' +
     employees.map(function(e){ return '<option value="'+e.id+'"'+(e.id===fe?' selected':'')+'>'+e.id+' '+e.name+'</option>' }).join('');
 
@@ -3460,13 +3472,13 @@ function refreshExportPreview(){
   var worklogs = getWorklogs().filter(function(w){ return isWorklogApproved(w) && w.date.indexOf(month)===0 });
   document.getElementById('exportPreviewTitle').textContent = month + ' · 已审批工时：' + worklogs.length + ' 条记录';
   if(worklogs.length===0){
-    document.getElementById('exportPreviewBody').innerHTML = '<tr class="empty-row"><td colspan="4">该月份暂无已审批工时记录</td></tr>';
+    document.getElementById('exportPreviewBody').innerHTML = '<tr class="empty-row"><td colspan="8">该月份暂无已审批工时记录</td></tr>';
     return;
   }
   var map = {};
   worklogs.forEach(function(w){
-    var key = w.empId+'|'+w.projCode;
-    if(!map[key]) map[key] = {empId:w.empId,empName:w.empName,projCode:w.projCode,projName:w.projName,normalHours:0,overtimeHours:0,totalHours:0,count:0};
+    var key = w.empId+'|'+w.projCode+'|'+(w.category||'')+'|'+(w.workhourType||'')+'|'+(w.workhourTypeName||'');
+    if(!map[key]) map[key] = {empId:w.empId,empName:w.empName,projCode:w.projCode,projName:w.projName,category:w.category||'',workhourType:w.workhourType||'',workhourTypeName:w.workhourTypeName||'',normalHours:0,overtimeHours:0,totalHours:0,count:0};
     map[key].normalHours += (w.normalHours || 0);
     map[key].overtimeHours += (w.overtimeHours || 0);
     map[key].totalHours += w.hours;
@@ -3475,7 +3487,7 @@ function refreshExportPreview(){
   var data = Object.values(map).sort(function(a,b){ return a.empId.localeCompare(b.empId) });
   document.getElementById('exportPreviewBody').innerHTML = data.map(function(r){
     var otText = r.overtimeHours>0 ? ' <span class="ot-badge ot">加'+r.overtimeHours.toFixed(1)+'h</span>' : '';
-    return '<tr><td>'+escHtml(r.empId)+' '+escHtml(r.empName)+'</td><td>'+escHtml(r.projCode)+' '+escHtml(r.projName)+'</td><td style="text-align:right;font-weight:600">'+r.totalHours.toFixed(1)+otText+'</td><td style="text-align:right">'+r.count+'</td></tr>';
+    return '<tr><td>'+escHtml(r.empId)+' '+escHtml(r.empName)+'</td><td>'+escHtml(r.category)+'</td><td>'+escHtml(r.projCode)+' '+escHtml(r.projName)+'</td><td>'+escHtml(r.workhourType)+'</td><td>'+escHtml(r.workhourTypeName)+'</td><td style="text-align:right;font-weight:600">'+r.totalHours.toFixed(1)+otText+'</td><td style="text-align:right">'+r.count+'</td></tr>';
   }).join('');
 }
 
@@ -3486,8 +3498,8 @@ function exportMonthWorklogs(){
   if(worklogs.length===0) return alert('该月份没有已审批的工时记录');
   var map = {};
   worklogs.forEach(function(w){
-    var key = w.empId+'|'+w.projCode;
-    if(!map[key]) map[key] = {empId:w.empId,empName:w.empName,projCode:w.projCode,projName:w.projName,normalHours:0,overtimeHours:0,totalHours:0,count:0};
+    var key = w.empId+'|'+w.projCode+'|'+(w.category||'')+'|'+(w.workhourType||'')+'|'+(w.workhourTypeName||'');
+    if(!map[key]) map[key] = {empId:w.empId,empName:w.empName,projCode:w.projCode,projName:w.projName,category:w.category||'',workhourType:w.workhourType||'',workhourTypeName:w.workhourTypeName||'',normalHours:0,overtimeHours:0,totalHours:0,count:0};
     map[key].normalHours += (w.normalHours || 0);
     map[key].overtimeHours += (w.overtimeHours || 0);
     map[key].totalHours += w.hours;
@@ -3495,12 +3507,12 @@ function exportMonthWorklogs(){
   });
   var data = Object.values(map).sort(function(a,b){ return a.empId.localeCompare(b.empId) });
   var totalNormalHours = 0, totalOtHours = 0, totalAllHours = 0;
-  var html = '<table><thead><tr><th>员工工号</th><th>员工姓名</th><th>项目编号</th><th>项目名称</th><th>正常工时(h)</th><th>加班工时(h)</th><th>总工时(h)</th><th>记录数</th></tr></thead><tbody>';
+  var html = '<table><thead><tr><th>员工工号</th><th>员工姓名</th><th>项目大类</th><th>项目编号</th><th>项目名称</th><th>工时类型</th><th>工时类型名称</th><th>正常工时(h)</th><th>加班工时(h)</th><th>总工时(h)</th><th>记录数</th></tr></thead><tbody>';
   data.forEach(function(r){
     totalNormalHours += r.normalHours; totalOtHours += r.overtimeHours; totalAllHours += r.totalHours;
-    html+='<tr><td>'+r.empId+'</td><td>'+r.empName+'</td><td>'+r.projCode+'</td><td>'+r.projName+'</td><td>'+r.normalHours.toFixed(1)+'</td><td>'+r.overtimeHours.toFixed(1)+'</td><td>'+r.totalHours.toFixed(1)+'</td><td>'+r.count+'</td></tr>';
+    html+='<tr><td>'+r.empId+'</td><td>'+r.empName+'</td><td>'+r.category+'</td><td>'+r.projCode+'</td><td>'+r.projName+'</td><td>'+r.workhourType+'</td><td>'+r.workhourTypeName+'</td><td>'+r.normalHours.toFixed(1)+'</td><td>'+r.overtimeHours.toFixed(1)+'</td><td>'+r.totalHours.toFixed(1)+'</td><td>'+r.count+'</td></tr>';
   });
-  html+='<tr style="font-weight:bold"><td colspan="4" style="text-align:right">合计</td><td>'+totalNormalHours.toFixed(1)+'</td><td>'+totalOtHours.toFixed(1)+'</td><td>'+totalAllHours.toFixed(1)+'</td><td>'+worklogs.length+'</td></tr>';
+  html+='<tr style="font-weight:bold"><td colspan="7" style="text-align:right">合计</td><td>'+totalNormalHours.toFixed(1)+'</td><td>'+totalOtHours.toFixed(1)+'</td><td>'+totalAllHours.toFixed(1)+'</td><td>'+worklogs.length+'</td></tr>';
   html+='</tbody></table>';
   var parser = new DOMParser();
   var doc = parser.parseFromString(html,'text/html');
@@ -3515,8 +3527,8 @@ function exportMonthWorklogDetail(){
   var worklogs = getWorklogs().filter(function(w){ return isWorklogApproved(w) && w.date.indexOf(month)===0 });
   if(worklogs.length===0) return alert('该月份没有已审批的工时记录');
   worklogs.sort(function(a,b){ return a.date.localeCompare(b.date) || a.empId.localeCompare(b.empId) });
-  var html = '<table><thead><tr><th>日期</th><th>员工工号</th><th>员工姓名</th><th>项目编号</th><th>项目名称</th><th>正常工时(h)</th><th>加班工时(h)</th><th>总工时(h)</th><th>是否加班</th><th>工作内容</th></tr></thead><tbody>';
-  worklogs.forEach(function(w){ html+='<tr><td>'+w.date+'</td><td>'+w.empId+'</td><td>'+w.empName+'</td><td>'+w.projCode+'</td><td>'+w.projName+'</td><td>'+(w.normalHours||0).toFixed(1)+'</td><td>'+(w.overtimeHours||0).toFixed(1)+'</td><td>'+w.hours+'</td><td>'+(w.isOvertime?'是':'否')+'</td><td>'+escHtml(w.content)+'</td></tr>'; });
+  var html = '<table><thead><tr><th>日期</th><th>员工工号</th><th>员工姓名</th><th>项目大类</th><th>项目编号</th><th>项目名称</th><th>工时类型</th><th>工时类型名称</th><th>正常工时(h)</th><th>加班工时(h)</th><th>总工时(h)</th><th>是否加班</th><th>工作内容</th></tr></thead><tbody>';
+  worklogs.forEach(function(w){ html+='<tr><td>'+w.date+'</td><td>'+w.empId+'</td><td>'+w.empName+'</td><td>'+(w.category||'')+'</td><td>'+w.projCode+'</td><td>'+w.projName+'</td><td>'+(w.workhourType||'')+'</td><td>'+(w.workhourTypeName||'')+'</td><td>'+(w.normalHours||0).toFixed(1)+'</td><td>'+(w.overtimeHours||0).toFixed(1)+'</td><td>'+w.hours+'</td><td>'+(w.isOvertime?'是':'否')+'</td><td>'+escHtml(w.content)+'</td></tr>'; });
   html+='</tbody></table>';
   var parser = new DOMParser();
   var doc = parser.parseFromString(html,'text/html');
