@@ -2018,8 +2018,8 @@ function getSelectedBatchRefs(){
   return refs;
 }
 
-function batchApproveSelected(refs){
-  var worklogs = getWorklogs();
+function batchApproveSelected(refs, worklogs){
+  if(!worklogs) worklogs = getWorklogs();
   var maxLevels = getApprovalLevelCount();
   var approverLevel = currentUser.role==='admin' ? 0 : (currentUser.approvalLevel||0);
   var updated = false;
@@ -2047,7 +2047,7 @@ function batchApproveSelected(refs){
     return false;
   }
 
-  // 执行审批
+  // 执行审批（原地修改传入的 worklogs）
   refs.forEach(function(batchRef){
     worklogs.forEach(function(w){
       var key = w.batchId ? 'B'+w.batchId : 'D'+w.empId+'_'+w.date;
@@ -2074,8 +2074,8 @@ function batchApproveSelected(refs){
   return updated;
 }
 
-function batchRejectSelected(refs){
-  var worklogs = getWorklogs();
+function batchRejectSelected(refs, worklogs){
+  if(!worklogs) worklogs = getWorklogs();
   var approverLevel = currentUser.role==='admin' ? 0 : (currentUser.approvalLevel||0);
   var unauthorized = false;
 
@@ -2129,7 +2129,7 @@ async function batchApproveAll(){
   }
   if(!confirm('确定批量通过选中的 '+refs.length+' 条工时记录？\n\n此操作将一次性通过所有选中记录的当前审批层级。')) return;
   var worklogs = getWorklogs();
-  var success = batchApproveSelected(refs);
+  var success = batchApproveSelected(refs, worklogs);
   if(success){
     // 用修改后的 worklogs 写回
     try {
@@ -2150,7 +2150,7 @@ async function batchRejectAll(){
   }
   if(!confirm('确定批量驳回选中的 '+refs.length+' 条工时记录？\n\n此操作将一次性驳回所有选中记录。')) return;
   var worklogs = getWorklogs();
-  var success = batchRejectSelected(refs);
+  var success = batchRejectSelected(refs, worklogs);
   if(success){
     try {
       await setStore('wt_worklogs', worklogs);
