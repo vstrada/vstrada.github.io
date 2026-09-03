@@ -1734,8 +1734,12 @@ function _entryCategoriesHTML(selected){
     categories.map(function(c){ return '<option value="'+escHtml(c.name)+'"'+(c.name===selected?' selected':'')+'>'+escHtml(c.code)+' - '+escHtml(c.name)+'</option>' }).join('');
 }
 
-function _entryProjectsHTML(selected){
-  var projects = getProjects();
+function _entryProjectsHTML(selected, keepEnded){
+  // keepEnded=true 时，仅当已截止项目正是当前选中项才保留（用于编辑历史记录时正常回显）
+  var projects = getProjects().filter(function(p){
+    if(p.status==='ended') return !!(keepEnded && p.code===selected);
+    return true; // 无 status 或 active 都视为进行中
+  });
   return '<option value="">选择项目</option>' +
     projects.map(function(p){ return '<option value="'+p.code+'"'+(p.code===selected?' selected':'')+'>'+p.code+' - '+escHtml(p.name)+'</option>' }).join('');
 }
@@ -2153,8 +2157,10 @@ function editMyWorklog(id){
     return '<option value="'+escHtml(c.name)+'"'+(c.name===wl.category?' selected':'')+'>'+escHtml(c.name)+'</option>';
   }).join('');
 
-  var projOptions = '<option value="">选择项目</option>' + getProjects().filter(function(p){ return p.name }).map(function(p){
-    return '<option value="'+escHtml(p.code)+'"'+(p.code===wl.projCode?' selected':'')+'>'+escHtml(p.code)+' '+escHtml(p.name)+'</option>';
+  var projOptions = '<option value="">选择项目</option>' + getProjects().filter(function(p){
+    return p.name && (p.status!=='ended' || p.code===wl.projCode);
+  }).map(function(p){
+    return '<option value="'+escHtml(p.code)+'"'+(p.code===wl.projCode?' selected':'')+'>'+escHtml(p.code)+' '+escHtml(p.name)+(p.status==='ended'?'（已截止）':'')+'</option>';
   }).join('');
 
   var whtOptions = '<option value="">选择工时类型</option>' + getWorkhourTypes().map(function(t){
@@ -3515,9 +3521,36 @@ document.getElementById('projectListBody').addEventListener('click', function(e)
   if(!btn) return;
   var code = btn.getAttribute('data-proj-code');
   if(!code) return;
-  if(btn.classList.contains('btn-danger')) deleteProject(code);
-  else if(btn.classList.contains('btn-outline')) editProject(code);
+  var action = btn.getAttribute('data-proj-action') || 'edit';
+  if(action==='delete') deleteProject(code);
+  else if(action==='edit') editProject(code);
+  else if(action==='end') endProject(code);
+  else if(action==='reopen') reopenProject(code);
 });
+
+// 结束项目（软删除：保留历史工时，仅禁止继续填报）
+function endProject(code){
+  var projects = getProjects();
+  var p = projects.find(function(x){ return x.code===code });
+  if(!p) return;
+  if(!confirm('确定结束项目「'+p.name+'」？\n\n结束之后：\n✅ 该项目的历史工时记录完整保留\n⛔ 员工填报工时时将无法再选择此项目\n\n如需恢复填报，可随时点击「重新开启」。')) return;
+  p.status = 'ended';
+  setStore('wt_projects', projects);
+  renderProjectList();
+  renderDashboard();
+}
+
+// 重新开启已结束项目
+function reopenProject(code){
+  var projects = getProjects();
+  var p = projects.find(function(x){ return x.code===code });
+  if(!p) return;
+  if(!confirm('确定重新开启项目「'+p.name+'」？\n\n开启后员工填报工时时可再次选择此项目。')) return;
+  p.status = 'active';
+  setStore('wt_projects', projects);
+  renderProjectList();
+  renderDashboard();
+}
 
 function handleAddProject(e){
   e.preventDefault();
@@ -3529,7 +3562,8 @@ function handleAddProject(e){
     name:document.getElementById('projName').value.trim(),
     start:document.getElementById('projStart').value,
     end:document.getElementById('projEnd').value,
-    desc:document.getElementById('projDesc').value.trim()
+    desc:document.getElementById('projDesc').value.trim(),
+    status:'active'
   });
   setStore('wt_projects',projects);
   document.getElementById('projectForm').reset();
@@ -3538,9 +3572,14 @@ function handleAddProject(e){
 }
 
 function deleteProject(code){
-  if(!confirm('确定删除该项目？相关工时记录也将被删除！')) return;
-  setStore('wt_projects',getProjects().filter(function(p){ return p.code!==code }));
-  setStore('wt_worklogs',getWorklogs().filter(function(w){ return w.projCode!==code }));
+  // 安全守卫：有工时关联的项目禁止删除（防历史数据丢失），引导使用「结束项目」
+  var related = getWorklogs().filter(function(w){ return w.projCode===code });
+  if(related.length>0){
+    alert('⚠️ 该项目下已有 '+related.length+' 条工时记录，禁止删除（会导致历史数据丢失）！\n\n如项目已研发完成，请使用「⏹ 结束项目」停用：\n- 员工将无法继续填报该项目\n- 历史工时记录完整保留\n- 可随时「重新开启」');
+    return;
+  }
+  if(!confirm('确定删除该项目？（该项目下无任何工时记录，可安全删除）')) return;
+  setStore('wt_projects', getProjects().filter(function(p){ return p.code!==code }));
   renderProjectList();
   renderDashboard();
 }
@@ -3548,6 +3587,7 @@ function deleteProject(code){
 function renderProjectList(){
   var projects = getProjects();
   var worklogs = getWorklogs().filter(function(w){ return isWorklogApproved(w) });
+  var allLogs = getWorklogs(); // 全量工时（含待审批），用于判断能否安全删除
   var isViewer = currentUser.role==='viewer';
   var isApprover = currentUser.role==='approver';
   var isAdmin = currentUser.role==='admin';
@@ -3571,7 +3611,27 @@ function renderProjectList(){
   }
   document.getElementById('projectListBody').innerHTML = projects.map(function(p){
     var hours = worklogs.filter(function(w){ return w.projCode===p.code }).reduce(function(s,w){ return s+w.hours },0);
-    return '<tr><td><strong>'+escHtml(p.code)+'</strong></td><td>'+escHtml(p.name)+'</td><td>'+(p.start||'-')+'</td><td>'+(p.end||'进行中')+'</td><td>'+hours.toFixed(1)+'h</td>' + (isAdmin?'<td><button class="btn btn-outline btn-sm" data-proj-code="'+p.code+'" style="color:#667eea;border-color:#667eea;margin-right:4px">编辑</button><button class="btn btn-danger btn-sm" data-proj-code="'+p.code+'">删除</button></td>':'') + '</tr>';
+    var related = allLogs.filter(function(w){ return w.projCode===p.code }).length;
+    var isEnded = p.status==='ended';
+    var badgeHtml = isEnded
+      ? ' <span style="background:#f1f1f4;color:#888;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600">已截止</span>'
+      : ' <span style="background:#e6f7f0;color:#11998e;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600">进行中</span>';
+    var btnsHtml = '';
+    if(isAdmin){
+      btnsHtml += '<button class="btn btn-outline btn-sm" data-proj-action="edit" data-proj-code="'+p.code+'" style="color:#667eea;border-color:#667eea;margin-right:4px">编辑</button>';
+      if(isEnded){
+        btnsHtml += '<button class="btn btn-outline btn-sm" data-proj-action="reopen" data-proj-code="'+p.code+'" style="color:#11998e;border-color:#11998e;margin-right:4px">▶️ 重新开启</button>';
+      }else{
+        btnsHtml += '<button class="btn btn-outline btn-sm" data-proj-action="end" data-proj-code="'+p.code+'" style="color:#f39c12;border-color:#f39c12;margin-right:4px">⏹ 结束项目</button>';
+      }
+      if(related===0){
+        btnsHtml += '<button class="btn btn-danger btn-sm" data-proj-action="delete" data-proj-code="'+p.code+'">删除</button>';
+      }else{
+        btnsHtml += '<span title="该项目下有 '+related+' 条工时记录，为防止历史数据丢失已禁用删除，可用「⏹ 结束项目」停用">' +
+                    '<button class="btn btn-sm" disabled style="background:#f1f1f4;color:#bbb;border:none;cursor:not-allowed">删除</button></span>';
+      }
+    }
+    return '<tr><td><strong>'+escHtml(p.code)+'</strong></td><td>'+escHtml(p.name)+badgeHtml+'</td><td>'+(p.start||'-')+'</td><td>'+(p.end||'进行中')+'</td><td>'+hours.toFixed(1)+'h</td>' + (isAdmin?'<td>'+btnsHtml+'</td>':'') + '</tr>';
   }).join('');
   // 更新表头
   var thead = document.querySelector('#tab-projects thead tr');
