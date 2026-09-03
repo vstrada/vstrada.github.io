@@ -778,28 +778,31 @@ function isEmptyData(val){
   return false;
 }
 
-// 自动备份工时数据到 localStorage（保留最近5份）
-function autoBackupWorklogs(){
+// 通用自动备份：写入前把某类数据的当前快照存到 localStorage（每类保留最近5份）
+// 支持：wt_worklogs（工时）、wt_projects（项目）等数组型数据
+function autoBackupStore(key){
   try {
-    var worklogsStr = localStorage.getItem('wt_worklogs');
-    if(!worklogsStr) return;
-    var data = JSON.parse(worklogsStr);
+    var str = localStorage.getItem(key);
+    if(!str) return;
+    var data = JSON.parse(str);
     if(!Array.isArray(data) || data.length === 0) return;
+    var prefix = key + '_backup_';
     var timestamp = new Date().toISOString();
-    var backupKey = 'wt_worklogs_backup_' + timestamp;
-    localStorage.setItem(backupKey, worklogsStr);
-    // 清理旧备份，只保留最近5份
+    localStorage.setItem(prefix + timestamp, str);
+    // 清理该类旧备份，只保留最近5份
     var backups = [];
     for(var i=0; i<localStorage.length; i++){
       var k = localStorage.key(i);
-      if(k && k.indexOf('wt_worklogs_backup_')===0) backups.push(k);
+      if(k && k.indexOf(prefix)===0) backups.push(k);
     }
     backups.sort(); // ISO时间戳天然按时间排序
     while(backups.length > 5){
       localStorage.removeItem(backups.shift());
     }
-  } catch(e){ console.error('autoBackupWorklogs error', e); }
+  } catch(e){ console.error('autoBackupStore error', e); }
 }
+function autoBackupWorklogs(){ autoBackupStore('wt_worklogs'); }
+function autoBackupProjects(){ autoBackupStore('wt_projects'); }
 
 // 从备份恢复工时数据（控制台调用：listWorklogBackups() / restoreWorklogBackup(index)）
 function listWorklogBackups(){
@@ -822,6 +825,29 @@ function restoreWorklogBackup(idx){
   var data = localStorage.getItem(key);
   localStorage.setItem('wt_worklogs', data);
   console.log('✅ 已从备份恢复 '+JSON.parse(data).length+' 条记录，请刷新页面');
+}
+
+// 项目表备份（与工时相同的保护机制）
+function listProjectBackups(){
+  var backups = [];
+  for(var i=0; i<localStorage.length; i++){
+    var k = localStorage.key(i);
+    if(k && k.indexOf('wt_projects_backup_')===0) backups.push(k);
+  }
+  backups.sort().reverse();
+  backups.forEach(function(k, idx){
+    var data = JSON.parse(localStorage.getItem(k));
+    console.log('['+idx+'] '+k.replace('wt_projects_backup_','')+' → '+data.length+' 个项目');
+  });
+  return backups;
+}
+function restoreProjectBackup(idx){
+  var backups = listProjectBackups();
+  if(idx >= backups.length){ console.error('索引超出范围'); return; }
+  var key = backups[idx];
+  var data = localStorage.getItem(key);
+  localStorage.setItem('wt_projects', data);
+  console.log('✅ 已从备份恢复 '+JSON.parse(data).length+' 个项目，请刷新页面');
 }
 // 提交前同步合并：从云端拉取最新 wt_worklogs，与本地按 id 合并
 // 返回合并后的数组（已写入 localStorage）
@@ -879,8 +905,9 @@ async function syncAndMergeWorklogs(){
 
 // 写入 Supabase（异步，不阻塞用户操作）
 async function supaSet(key, val){
-  // 工时数据推送前自动备份
+  // 工时/项目数据推送前自动备份（防覆盖可回滚）
   if(key === 'wt_worklogs') autoBackupWorklogs();
+  else if(key === 'wt_projects') autoBackupProjects();
   localStorage.setItem(key, JSON.stringify(val));
   try {
     var resp = await fetch(SUPA_URL+'/rest/v1/worktime_data',{
@@ -3483,7 +3510,7 @@ function editProject(code){
     '<div class="form-group"><label>开始日期</label><input type="date" id="editProjStart" value="'+(p.start||'')+'"></div>' +
     '<div class="form-group"><label>结束日期</label><input type="date" id="editProjEnd" value="'+(p.end||'')+'"></div>' +
     '<div class="form-group"><label>项目描述</label><textarea id="editProjDesc" rows="2">'+(p.desc?escHtml(p.desc):'')+'</textarea></div>',
-    function(){
+    async function(){
       var newCode = document.getElementById('editProjCode').value.trim();
       if(!newCode){ alert('请输入项目编号！'); return; }
       var newName = document.getElementById('editProjName').value.trim();
@@ -3499,18 +3526,21 @@ function editProject(code){
       p.end = document.getElementById('editProjEnd').value;
       p.desc = document.getElementById('editProjDesc').value.trim();
       setStore('wt_projects', projects);
-      // 同步更新工时记录中的项目编号
-      if(oldCode !== newCode){
-        var worklogs = getWorklogs();
-        var changed = false;
-        worklogs.forEach(function(w){
-          if(w.projCode===oldCode){ w.projCode=newCode; changed=true; }
-        });
-        if(changed) setStore('wt_worklogs', worklogs);
-      }
       closeEditModal();
       renderProjectList();
       renderDashboard();
+      // 同步更新工时记录中的项目编号：先拉云端最新数据合并，再改写推送，
+      // 避免用滞后的本地数组覆盖其他员工刚提交的记录（防并发竞态）
+      if(oldCode !== newCode){
+        try {
+          var merged = await syncAndMergeWorklogs();
+          var changed = false;
+          merged.forEach(function(w){
+            if(w.projCode===oldCode){ w.projCode=newCode; changed=true; }
+          });
+          if(changed) setStore('wt_worklogs', merged);
+        } catch(e){ console.error('editProject 同步工时编号失败', e); }
+      }
     }
   );
 }
