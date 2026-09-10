@@ -430,6 +430,20 @@ tbody tr:hover{background:#f8f9fb}
   <button class="btn btn-primary mt-15" onclick="saveApprovalLevels()">💾 保存设置</button>
   <span id="approvalLevelSaveMsg" style="margin-left:12px;font-size:13px"></span>
 </div>
+<div class="card" id="backfillCard" style="display:none">
+  <h2>🗓 补录授权管理</h2>
+  <p class="subtitle">员工默认只能填报当月工时；每月 5 日之后补录之前月份，需在此开通授权</p>
+  <div id="backfillStatus" style="padding:12px 16px;background:#f7f8fc;border-radius:10px;font-size:14px;line-height:1.9"></div>
+  <button class="btn btn-primary mt-15" id="backfillBtn" onclick="toggleBackfillAuth()">✅ 开启补录授权</button>
+  <span id="backfillMsg" style="margin-left:12px;font-size:13px"></span>
+  <div style="margin-top:14px;font-size:13px;color:#888;line-height:1.8">
+    规则说明：<br>
+    · 当月工时：随时可正常填报<br>
+    · 上月工时：次月 1—5 日（宽限期）内可正常补录<br>
+    · 更早月份 / 5 日之后补录上月：需管理员在此开启授权<br>
+    · 授权为全局开关，建议核算期临时开启，完成后及时关闭
+  </div>
+</div>
 <div class="card" id="adminPwdCard" style="display:none">
   <h2>🔑 管理员设置</h2>
   <p class="subtitle">修改管理员登录密码</p>
@@ -450,6 +464,7 @@ tbody tr:hover{background:#f8f9fb}
     <span id="wlDateBadge" class="day-type-badge workday">工作日</span>
     <span id="wlDateHint" class="day-type-hint"></span>
   </div>
+  <div style="margin-top:6px;font-size:12px;color:#999">📌 补录规则：每月 5 日后不能再补录之前月份的工时，如需补录请联系管理员授权</div>
 </div>
 
 <!-- 项目条目容器 -->
@@ -1358,6 +1373,79 @@ function setWorktimeSettings(settings){
   supaSet('wt_worktime', settings);
 }
 
+// ==================== 补录授权（每月5日后补录历史月份需管理员授权） ====================
+function getBackfillAuth(){
+  var raw = localStorage.getItem('wt_backfill_auth');
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  return { enabled: false, enabledBy: '', enabledAt: '' };
+}
+function setBackfillAuth(enabled){
+  var auth = {
+    enabled: !!enabled,
+    enabledBy: currentUser ? currentUser.name : '',
+    enabledAt: new Date().toLocaleString('zh-CN')
+  };
+  localStorage.setItem('wt_backfill_auth', JSON.stringify(auth));
+  supaSet('wt_backfill_auth', auth);
+  return auth;
+}
+
+// 是否为"超期"的历史月份日期：非当月，且不在次月 1-5 日宽限期内
+function isBackfillOverdue(dateStr){
+  if(!dateStr || dateStr.length < 7) return false;
+  var now = new Date();
+  var pad = function(n){ return (n<10?'0':'') + n; };
+  var curYm = now.getFullYear() + '-' + pad(now.getMonth()+1);
+  var targetYm = dateStr.slice(0,7);
+  if(targetYm >= curYm) return false;                       // 当月 / 未来 → 不属补录限制
+  var prev = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  var prevYm = prev.getFullYear() + '-' + pad(prev.getMonth()+1);
+  if(targetYm === prevYm && now.getDate() <= 5) return false; // 次月1-5日宽限期
+  return true;
+}
+
+// 员工能否填报该日期：管理员始终允许；超期月份需管理员已开通补录授权
+function canFillDate(dateStr){
+  if(!isBackfillOverdue(dateStr)) return true;
+  if(currentUser && currentUser.role === 'admin') return true;
+  return !!getBackfillAuth().enabled;
+}
+
+// ==================== 补录授权管理（管理员界面） ====================
+function loadBackfillForm(){
+  var auth = getBackfillAuth();
+  var statusEl = document.getElementById('backfillStatus');
+  var btnEl = document.getElementById('backfillBtn');
+  if(!statusEl || !btnEl) return;
+  if(auth.enabled){
+    statusEl.innerHTML = '🟢 当前状态：<strong>已开通补录授权</strong>（员工可补录历史月份工时）<br><span style="color:#888;font-size:13px">开通人：' + escHtml(auth.enabledBy||'-') + ' · 时间：' + escHtml(auth.enabledAt||'-') + '</span>';
+    btnEl.textContent = '⛔ 关闭补录授权';
+    btnEl.className = 'btn btn-danger mt-15';
+  } else {
+    statusEl.innerHTML = '⚪ 当前状态：<strong>未开通</strong>（员工每月5日后无法补录历史月份工时）';
+    btnEl.textContent = '✅ 开启补录授权';
+    btnEl.className = 'btn btn-primary mt-15';
+  }
+}
+
+function toggleBackfillAuth(){
+  var auth = getBackfillAuth();
+  if(!auth.enabled){
+    if(!confirm('确定开启补录授权吗？\n\n开启后，员工可以补录之前月份的工时记录。建议在汇总核算期间临时开启，完成后及时关闭。')) return;
+    setBackfillAuth(true);
+  } else {
+    if(!confirm('确定关闭补录授权吗？\n\n关闭后，员工将无法补录之前月份的工时记录。')) return;
+    setBackfillAuth(false);
+  }
+  loadBackfillForm();
+  var msg = document.getElementById('backfillMsg');
+  if(msg){
+    msg.textContent = '✅ 设置已保存并同步云端';
+    msg.style.color = '#11998e';
+    setTimeout(function(){ msg.textContent = ''; }, 2500);
+  }
+}
+
 function updateWorktimeLabel(){
   // 多项目工时表单已动态显示标准时间，此处保留兼容
   var label = document.getElementById('wlStandardLabel');
@@ -1640,8 +1728,9 @@ function enterSystem(){
   document.getElementById('sysNameCard').style.display = currentUser.role==='admin'?'block':'none';
   document.getElementById('worktimeCard').style.display = currentUser.role==='admin'?'block':'none';
   document.getElementById('approvalLevelCard').style.display = currentUser.role==='admin'?'block':'none';
+  document.getElementById('backfillCard').style.display = currentUser.role==='admin'?'block':'none';
   document.getElementById('adminPwdCard').style.display = currentUser.role==='admin'?'block':'none';
-  if(currentUser.role==='admin'){ loadSysNameForm(); loadWorktimeForm(); loadApprovalLevelForm(); }
+  if(currentUser.role==='admin'){ loadSysNameForm(); loadWorktimeForm(); loadApprovalLevelForm(); loadBackfillForm(); }
   applySysName();
 
   buildNav();
@@ -1872,6 +1961,15 @@ function onWorklogDateChange(){
   badge.className = 'day-type-badge ' + t.type;
   badge.textContent = t.label;
 
+  // 补录管控提示：超期历史月份需管理员授权
+  if(!canFillDate(dateStr)){
+    hint.className = 'day-type-hint';
+    hint.style.color = '#eb3349';
+    hint.textContent = '❌ 该月份已超补录期限（每月 5 日后），需管理员开通「补录授权」才能填报';
+    return;
+  }
+  hint.style.color = '';
+
   if(t.type === 'workday'){
     hint.className = 'day-type-hint';
     hint.textContent = '';
@@ -2072,6 +2170,12 @@ async function handleAddWorklog(e){
     return;
   }
 
+  // 补录管控：每月5日后补录历史月份需管理员授权
+  if(!canFillDate(date)){
+    alert('❌ 每月 5 日后不能再补录之前月份的工时记录。\n\n如需补录，请联系管理员开通「补录授权」。');
+    return;
+  }
+
   // 一级审��人验证
   var approverSel = document.getElementById('wlLevel1Approver');
   if(!approverSel || !approverSel.value){ alert('请选择一级审批人！'); return; }
@@ -2262,6 +2366,11 @@ function editMyWorklog(id){
       var dupDate = worklogs.some(function(w){ return w.id!==wl.id && w.empId===currentUser.id && w.date===newDate; });
       if(dupDate){
         alert('⚠️ 当天已存在记录，不能重复添加工时，如需修改请返回记录修改');
+        return;
+      }
+      // 补录管控：把日期改到超期的历史月份需管理员授权（原日期不变则允许修正内容）
+      if(newDate !== wl.date && !canFillDate(newDate)){
+        alert('❌ 每月 5 日后不能再补录之前月份的工时记录。\n\n如需补录，请联系管理员开通「补录授权」。');
         return;
       }
       if(!newCat){ alert('请选择项目大类！'); return; }
