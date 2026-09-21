@@ -604,6 +604,15 @@ tbody tr:hover{background:#f8f9fb}
 </div>
 <div class="card">
 <h2>👥 员工列表</h2>
+<div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+  <label style="font-size:13px;color:#888">状态筛选</label>
+  <select id="employeeStatusFilter" onchange="renderEmployeeList()" style="font-size:14px;padding:6px 10px;border:1px solid #e0e3ea;border-radius:8px;background:#fff">
+    <option value="">全部员工（含已停用）</option>
+    <option value="active">🟢 仅在职</option>
+    <option value="disabled">⚪ 仅已停用</option>
+  </select>
+  <span id="employeeFilterCount" style="font-size:12px;color:#aaa"></span>
+</div>
 <div class="table-wrap"><table>
 <thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职位</th><th>角色</th><th>状态</th><th>操作</th></tr></thead>
 <tbody id="employeeListBody"></tbody>
@@ -3336,11 +3345,19 @@ function toggleEmployeeActive(id){
 
 function renderEmployeeList(){
   var employees = getEmployees();
-  if(employees.length===0){
-    document.getElementById('employeeListBody').innerHTML = '<tr class="empty-row"><td colspan="7">暂无员工数据</td></tr>';
+  var filterEl = document.getElementById('employeeStatusFilter');
+  var fv = filterEl ? filterEl.value : '';
+  var filtered = employees;
+  if(fv==='active') filtered = employees.filter(function(e){ return e.active!==false; });
+  else if(fv==='disabled') filtered = employees.filter(function(e){ return e.active===false; });
+  var countEl = document.getElementById('employeeFilterCount');
+  if(countEl) countEl.textContent = '共 ' + filtered.length + ' 人（在职 ' + employees.filter(function(e){ return e.active!==false; }).length + ' / 停用 ' + employees.filter(function(e){ return e.active===false; }).length + '）';
+  if(filtered.length===0){
+    var emptyText = employees.length===0 ? '暂无员工数据' : (fv==='disabled' ? '当前没有已停用的员工' : '没有符合条件的员工');
+    document.getElementById('employeeListBody').innerHTML = '<tr class="empty-row"><td colspan="7">'+emptyText+'</td></tr>';
     return;
   }
-  document.getElementById('employeeListBody').innerHTML = employees.map(function(e){
+  document.getElementById('employeeListBody').innerHTML = filtered.map(function(e){
     var roleClass = '', roleLabel = '';
     if(e.role==='approver'){
       roleClass='role-toggle approver';
