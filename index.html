@@ -605,7 +605,7 @@ tbody tr:hover{background:#f8f9fb}
 <div class="card">
 <h2>👥 员工列表</h2>
 <div class="table-wrap"><table>
-<thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职位</th><th>角色</th><th>操作</th></tr></thead>
+<thead><tr><th>工号</th><th>姓名</th><th>部门</th><th>职位</th><th>角色</th><th>状态</th><th>操作</th></tr></thead>
 <tbody id="employeeListBody"></tbody>
 </table></div>
 </div>
@@ -947,7 +947,7 @@ function getWorklogs(){ return getStore('wt_worklogs') }
 function refreshApproverSelect(){
   var sel = document.getElementById('wlLevel1Approver');
   if(!sel) return;
-  var level1Approvers = getEmployees().filter(function(e){ return e.role==='approver' && e.approvalLevel===1; });
+  var level1Approvers = getEmployees().filter(function(e){ return e.role==='approver' && e.approvalLevel===1 && e.active!==false; });
   var currentVal = sel.value;
   sel.innerHTML = '<option value="">请选择审批人</option>' + level1Approvers.map(function(a){
     return '<option value="'+escHtml(a.id)+'|'+escHtml(a.name)+'">'+escHtml(a.name)+'（'+escHtml(a.department||'')+'）</option>';
@@ -1706,6 +1706,7 @@ function doLogin(){
     var employees = getEmployees();
     var emp = employees.find(function(e){ return e.name===name });
     if(!emp){ showLoginError('姓名不存在，请检查是否输入正确'); return; }
+    if(emp.active === false){ showLoginError('该账号已停用，无法登录。如有疑问请联系管理员。'); return; }
     if(emp.password !== pwd){ showLoginError('密码错误'); return; }
     currentUser = { id:emp.id, name:emp.name, role:emp.role, approvalLevel:emp.approvalLevel||0 };
     resetIntegrityCheck();
@@ -2326,8 +2327,8 @@ function editMyWorklog(id){
     return '<option value="'+escHtml(n.name)+'"'+(n.name===wl.workhourTypeName?' selected':'')+'>'+escHtml(n.name)+'</option>';
   }).join('');
 
-  // 一级审批人下拉
-  var level1Approvers = getEmployees().filter(function(e){ return e.role==='approver' && e.approvalLevel===1; });
+  // 一级审批人下拉（排除已停用员工，但保留该记录原审批人以便回显）
+  var level1Approvers = getEmployees().filter(function(e){ return e.role==='approver' && e.approvalLevel===1 && (e.active!==false || e.id===wl.level1ApproverId); });
   var approverOptions = '<option value="">请选择审批人</option>' + level1Approvers.map(function(a){
     var sel = (wl.level1ApproverId===a.id) ? ' selected' : '';
     return '<option value="'+escHtml(a.id)+'|'+escHtml(a.name)+'"'+sel+'>'+escHtml(a.name)+'（'+escHtml(a.department||'')+'）</option>';
@@ -3153,7 +3154,7 @@ function renderAllWorklogs(){
   document.getElementById('filterWorkhourTypeName').innerHTML = '<option value="">全部类型名称</option>' +
     workhourTypeNames.map(function(n){ return '<option value="'+escHtml(n.name)+'"'+(n.name===fwtn?' selected':'')+'>'+escHtml(n.name)+'</option>' }).join('');
   document.getElementById('filterEmployee').innerHTML = '<option value="">全部员工</option>' +
-    employees.map(function(e){ return '<option value="'+e.id+'"'+(e.id===fe?' selected':'')+'>'+e.id+' '+e.name+'</option>' }).join('');
+    employees.map(function(e){ return '<option value="'+e.id+'"'+(e.id===fe?' selected':'')+'>'+e.id+' '+e.name+(e.active===false?'（已停用）':'')+'</option>' }).join('');
 
   // 渲染统计面板
   renderWorklogStats('allWorklogStats', worklogs);
@@ -3243,6 +3244,7 @@ document.getElementById('employeeListBody').addEventListener('click', function(e
   if(!empId) return;
   if(btn.classList.contains('btn-reset-pwd')) resetEmployeePassword(empId);
   else if(btn.classList.contains('btn-toggle-role')) toggleEmployeeRole(empId);
+  else if(btn.classList.contains('btn-toggle-active')) toggleEmployeeActive(empId);
   else deleteEmployee(empId);
 });
 
@@ -3295,17 +3297,47 @@ function toggleEmployeeRole(empId){
 }
 
 function deleteEmployee(id){
-  if(!confirm('确定删除该员工？相关工时记录也将被删除！')) return;
+  var emp = getEmployees().find(function(e){ return e.id===id });
+  if(!emp) return;
+  var related = getWorklogs().filter(function(w){ return w.empId===id }).length;
+  if(related > 0){
+    alert('⚠️ 该员工存在 ' + related + ' 条工时记录，不能删除。\n\n如需停止其填报权限，请使用「⛔ 停用」功能——停用后该员工无法登录，但历史工时记录完整保留。');
+    return;
+  }
+  if(!confirm('确定删除员工「'+emp.name+'」吗？该员工暂无工时记录，删除后不可恢复。')) return;
   setStore('wt_employees',getEmployees().filter(function(e){ return e.id!==id }));
-  setStore('wt_worklogs',getWorklogs().filter(function(w){ return w.empId!==id }));
   renderEmployeeList();
   renderDashboard();
+}
+
+// ==================== 员工账号停用 / 启用（离职、调岗） ====================
+function toggleEmployeeActive(id){
+  var employees = getEmployees();
+  var idx = employees.findIndex(function(e){ return e.id===id });
+  if(idx===-1) return;
+  var emp = employees[idx];
+  var willDisable = emp.active !== false;
+  if(willDisable){
+    if(!confirm('确定停用「'+emp.name+'」的登录权限吗？\n\n· 该员工将无法登录系统、无法再填报工时\n· 历史工时记录全部保留，不受影响\n· 可随时重新启用')) return;
+    emp.active = false;
+    emp.disabledAt = new Date().toLocaleString('zh-CN');
+    emp.disabledBy = currentUser ? currentUser.name : '';
+  } else {
+    if(!confirm('确定重新启用「'+emp.name+'」的登录权限吗？\n\n启用后该员工可重新登录并填报工时。')) return;
+    emp.active = true;
+    delete emp.disabledAt;
+    delete emp.disabledBy;
+  }
+  setStore('wt_employees',employees);
+  renderEmployeeList();
+  renderDashboard();
+  alert(willDisable ? ('⛔ 已停用「'+emp.name+'」的登录权限，历史工时记录已保留。') : ('✅ 已重新启用「'+emp.name+'」的登录权限。'));
 }
 
 function renderEmployeeList(){
   var employees = getEmployees();
   if(employees.length===0){
-    document.getElementById('employeeListBody').innerHTML = '<tr class="empty-row"><td colspan="6">暂无员工数据</td></tr>';
+    document.getElementById('employeeListBody').innerHTML = '<tr class="empty-row"><td colspan="7">暂无员工数据</td></tr>';
     return;
   }
   document.getElementById('employeeListBody').innerHTML = employees.map(function(e){
@@ -3318,13 +3350,22 @@ function renderEmployeeList(){
     }
     else if(e.role==='viewer'){ roleClass='role-toggle viewer'; roleLabel='查看者 👁️'; }
     else { roleClass='role-toggle employee'; roleLabel='员工'; }
-    return '<tr>' +
+    var isActive = e.active !== false;
+    var statusHtml = isActive
+      ? '<span class="badge badge-success">🟢 在职</span>'
+      : '<span class="badge" style="background:#f1f1f1;color:#888">⚪ 已停用</span>';
+    var toggleBtn = isActive
+      ? '<button class="btn btn-outline btn-sm btn-toggle-active" data-emp-id="'+e.id+'" style="color:#b45309;border-color:#b45309;margin-right:4px" title="停用后该员工无法登录">⛔ 停用</button>'
+      : '<button class="btn btn-success btn-sm btn-toggle-active" data-emp-id="'+e.id+'" style="margin-right:4px" title="恢复该员工的登录权限">▶️ 启用</button>';
+    return '<tr'+(isActive?'':' style="opacity:.6;background:#fafafa"')+'>' +
       '<td>'+escHtml(e.id)+'</td>' +
       '<td>'+escHtml(e.name)+'</td>' +
       '<td>'+(e.department||'-')+'</td>' +
       '<td>'+(e.position||'-')+'</td>' +
       '<td><button class="'+roleClass+' btn-toggle-role" data-emp-id="'+e.id+'" title="点击切换角色">'+roleLabel+'</button></td>' +
+      '<td>'+statusHtml+'</td>' +
       '<td>' +
+        toggleBtn +
         '<button class="btn btn-warning btn-sm btn-reset-pwd" data-emp-id="'+e.id+'" style="margin-right:4px">重置密码</button>' +
         '<button class="btn btn-danger btn-sm" data-emp-id="'+e.id+'">删除</button>' +
       '</td>' +
